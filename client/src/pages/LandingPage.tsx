@@ -4,6 +4,7 @@ import { HealthResponse } from '@nexora/shared';
 import { useSocket } from '../hooks/useSocket';
 import { useAuth } from '../hooks/useAuth';
 import { CyberGridPreview } from '../components/UI/CyberGridPreview';
+import { getApiUrl } from '../services/api';
 
 export const LandingPage: React.FC = () => {
   const { isConnected } = useSocket();
@@ -13,7 +14,7 @@ export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch('/api/health')
+    fetch(getApiUrl('/api/health'))
       .then((res) => res.json())
       .then((data: HealthResponse) => {
         setHealth(data);

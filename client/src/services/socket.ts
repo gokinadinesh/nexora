@@ -1,12 +1,14 @@
 import { io, Socket } from 'socket.io-client';
 import { getStoredToken } from './api';
 
+const SOCKET_SERVER_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '') || undefined;
+
 let socket: Socket | null = null;
 
 export function getSocket(): Socket {
   if (!socket) {
     const token = getStoredToken();
-    socket = io({
+    socket = io(SOCKET_SERVER_URL, {
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 10,
@@ -23,7 +25,7 @@ export function reconnectSocketWithAuth(token?: string): Socket {
     socket.disconnect();
   }
 
-  socket = io({
+  socket = io(SOCKET_SERVER_URL, {
     autoConnect: true,
     reconnection: true,
     reconnectionAttempts: 10,

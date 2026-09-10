@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { matchmakingService } from '../../services/matchmaking.service';
 import { QUEUE_STATUS } from '@nexora/shared';
 import { DemoGuideModal } from '../UI/DemoGuideModal';
+import { getApiUrl } from '../../services/api';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -48,7 +49,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     const measurePing = async () => {
       const start = Date.now();
       try {
-        await fetch('/api/health');
+        await fetch(getApiUrl('/api/health'));
         setLatencyMs(Date.now() - start);
       } catch {
         setLatencyMs(null);
