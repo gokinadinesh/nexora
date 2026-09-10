@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc && node -e \"const fs=require('fs'); fs.mkdirSync('dist/migrations',{recursive:true}); for(const f of fs.readdirSync('src/migrations')) if(f.endsWith('.sql')) fs.copyFileSync('src/migrations/'+f, 'dist/migrations/'+f);\"",
+    "build": "tsc && node -e \"const fs=require('fs'); const p=require('path'); const src=p.join('src','db','migrations'); const dst=p.join('dist','db','migrations'); fs.mkdirSync(dst,{recursive:true}); if(fs.existsSync(src)){for(const f of fs.readdirSync(src)) if(f.endsWith('.sql')) fs.copyFileSync(p.join(src,f), p.join(dst,f));}\"",
     "start": "node dist/server.js",
     "db:migrate": "tsx src/scripts/migrate.ts"
   },
