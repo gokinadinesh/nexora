@@ -1,0 +1,40 @@
+{
+  "name": "nexora-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NEXORA - Real-time multiplayer competitive cyber-strategy game",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=server",
+    "dev:server": "npm run dev --workspace=server",
+    "dev:client": "npm run dev --workspace=client",
+    "build": "npm run build --workspaces --if-present",
+    "start": "node server/dist/server.js",
+    "test:foundation": "node test-foundation.cjs",
+    "test:stage2": "node test-stage2.cjs",
+    "test:stage3": "node test-stage3.cjs",
+    "test:stage4": "node test-stage4.cjs",
+    "test:stage5": "node test-stage5.cjs",
+    "test:stage6": "node test-stage6.cjs",
+    "test:stage7": "node test-stage7.cjs",
+    "test:stage8": "node test-stage8.cjs",
+    "test:load": "node scripts/load-test.cjs",
+    "test:engine": "node test-game-engine.cjs",
+    "test": "node test-stage8.cjs",
+    "db:migrate": "npm run db:migrate --workspace=server"
+  },
+  "keywords": [
+    "multiplayer",
+    "cyber-strategy",
+    "realtime",
+    "socketio",
+    "react",
+    "express"
+  ],
+  "author": "NEXORA Team",
+  "license": "UNLICENSED"
+}

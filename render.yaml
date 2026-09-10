@@ -1,0 +1,43 @@
+# ==============================================================================
+# NEXORA — Render Blueprint Infrastructure-as-Code Specification
+# "Enter the Grid. Outsmart the Network."
+# ==============================================================================
+
+services:
+  # 1. Consolidated Real-Time Web Service (Node.js/Express + Vite SPA + Socket.IO)
+  - type: web
+    name: nexora-app
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nexora-postgres
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: OPERATOR_SECRET
+        generateValue: true
+      - key: OPERATOR_USERNAMES
+        value: ops_admin,lead_architect,operator
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 60000
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: 60
+      - key: BODY_LIMIT
+        value: 100kb
+
+# 2. Managed Cloud PostgreSQL Database
+databases:
+  - name: nexora-postgres
+    plan: free
+    region: oregon
+    databaseName: nexora
+    user: nexora_user

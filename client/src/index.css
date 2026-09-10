@@ -1,0 +1,525 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap');
+
+:root {
+  /* Color Palette - Cyber / High-Tech Esports */
+  --bg-void: #03060f;
+  --bg-deep: #060a17;
+  --bg-surface: #0a1226;
+  --bg-surface-elevated: #101c3d;
+  --bg-surface-hover: #162652;
+  --bg-glass: rgba(10, 18, 38, 0.85);
+  --bg-overlay: rgba(3, 6, 15, 0.88);
+
+  --border-subtle: #18284d;
+  --border-medium: #223769;
+  --border-neon: #00f0ff;
+  --border-glow: rgba(0, 240, 255, 0.3);
+  --border-magenta-glow: rgba(255, 0, 85, 0.3);
+
+  --text-primary: #f0f6fc;
+  --text-secondary: #8fa5ca;
+  --text-muted: #53698f;
+  --text-accent: #00f0ff;
+  --text-danger: #ff3366;
+  --text-success: #00ff88;
+  --text-warning: #ffb700;
+
+  --accent-cyan: #00f0ff;
+  --accent-magenta: #ff0055;
+  --accent-amber: #ffb700;
+  --accent-purple: #a855f7;
+  --accent-green: #00ff88;
+  --accent-blue: #3b82f6;
+
+  /* Tier Rank Accents */
+  --tier-grandmaster: #ff0055;
+  --tier-master: #a855f7;
+  --tier-diamond: #00f0ff;
+  --tier-platinum: #2dd4bf;
+  --tier-gold: #f59e0b;
+  --tier-silver: #94a3b8;
+  --tier-bronze: #b45309;
+
+  /* Fonts */
+  --font-display: 'Orbitron', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Rajdhani', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'Share Tech Mono', monospace;
+
+  /* Shadows & Glows */
+  --glow-cyan: 0 0 16px rgba(0, 240, 255, 0.4);
+  --glow-cyan-strong: 0 0 28px rgba(0, 240, 255, 0.7);
+  --glow-magenta: 0 0 16px rgba(255, 0, 85, 0.4);
+  --glow-magenta-strong: 0 0 28px rgba(255, 0, 85, 0.7);
+  --glow-amber: 0 0 16px rgba(255, 183, 0, 0.4);
+  --glow-green: 0 0 16px rgba(0, 255, 136, 0.4);
+  --glow-subtle: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow: 0.4s ease;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--bg-void);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Background Cyber Grid with Subtle Radial Center */
+body {
+  background-image: 
+    radial-gradient(circle at 50% 15%, rgba(0, 240, 255, 0.08) 0%, transparent 60%),
+    radial-gradient(circle at 90% 85%, rgba(255, 0, 85, 0.04) 0%, transparent 50%),
+    linear-gradient(rgba(0, 240, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.025) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 48px 48px, 48px 48px;
+  background-position: center, center, -1px -1px, -1px -1px;
+  background-attachment: fixed;
+}
+
+/* App Container */
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Typography Defaults */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+p {
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+}
+
+/* Custom Cyber Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-void);
+  border-left: 1px solid var(--border-subtle);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+/* Accessible Focus States */
+:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* Interactive Elements */
+button {
+  font-family: var(--font-display);
+  cursor: pointer;
+  border: none;
+  background: none;
+  text-decoration: none;
+  transition: all var(--transition-normal);
+}
+
+/* Primary Cyber Action Button */
+.btn-cyber-primary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 13px 32px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: #03060f;
+  background: var(--accent-cyan);
+  border: 1px solid var(--accent-cyan);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  box-shadow: var(--glow-cyan);
+  user-select: none;
+}
+
+.btn-cyber-primary:hover:not(:disabled) {
+  background: #3cf3ff;
+  box-shadow: var(--glow-cyan-strong);
+  transform: translateY(-2px);
+}
+
+.btn-cyber-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--glow-cyan);
+}
+
+.btn-cyber-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  filter: grayscale(0.5);
+}
+
+/* Secondary Cyber Button */
+.btn-cyber-secondary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 22px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--accent-cyan);
+  background: rgba(0, 240, 255, 0.07);
+  border: 1px solid var(--border-neon);
+  border-radius: 3px;
+  transition: all var(--transition-normal);
+  user-select: none;
+}
+
+.btn-cyber-secondary:hover:not(:disabled) {
+  background: rgba(0, 240, 255, 0.18);
+  box-shadow: var(--glow-cyan);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.btn-cyber-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Danger / Action Button */
+.btn-cyber-danger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 22px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #ff3366;
+  background: rgba(255, 51, 102, 0.08);
+  border: 1px solid rgba(255, 51, 102, 0.5);
+  border-radius: 3px;
+  transition: all var(--transition-normal);
+}
+
+.btn-cyber-danger:hover:not(:disabled) {
+  background: rgba(255, 51, 102, 0.22);
+  box-shadow: var(--glow-magenta);
+  color: #ffffff;
+}
+
+/* Ghost Button */
+.btn-cyber-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  border-radius: 3px;
+  transition: all var(--transition-fast);
+}
+
+.btn-cyber-ghost:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Cyber Card / Container */
+.cyber-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  box-shadow: var(--glow-subtle);
+  position: relative;
+  overflow: hidden;
+}
+
+.cyber-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 32px;
+  height: 2px;
+  background: var(--accent-cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+.cyber-card-glow {
+  border-color: var(--border-medium);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(0, 240, 255, 0.15);
+}
+
+/* Form Controls */
+.cyber-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.cyber-label {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cyber-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.cyber-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  letter-spacing: 0.05em;
+  outline: none;
+  transition: all var(--transition-normal);
+}
+
+.cyber-input:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.25);
+  background: var(--bg-surface-hover);
+}
+
+/* Alert Notification */
+.cyber-alert {
+  padding: 14px 18px;
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  line-height: 1.4;
+}
+
+.cyber-alert-danger {
+  background: rgba(255, 51, 102, 0.12);
+  border: 1px solid rgba(255, 51, 102, 0.45);
+  color: var(--text-danger);
+}
+
+.cyber-alert-success {
+  background: rgba(0, 255, 170, 0.12);
+  border: 1px solid rgba(0, 255, 170, 0.45);
+  color: var(--text-success);
+}
+
+.cyber-alert-warning {
+  background: rgba(255, 183, 0, 0.12);
+  border: 1px solid rgba(255, 183, 0, 0.45);
+  color: var(--text-warning);
+}
+
+.cyber-alert-info {
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  color: var(--accent-cyan);
+}
+
+/* Cyber Badge / Status Indicator */
+.cyber-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.cyber-badge.status-ok {
+  border-color: rgba(0, 255, 136, 0.4);
+  color: var(--text-success);
+  background: rgba(0, 255, 136, 0.06);
+}
+
+.cyber-badge.status-offline {
+  border-color: rgba(255, 51, 102, 0.4);
+  color: var(--text-danger);
+  background: rgba(255, 51, 102, 0.06);
+}
+
+.cyber-badge.status-queued {
+  border-color: rgba(255, 183, 0, 0.4);
+  color: var(--text-warning);
+  background: rgba(255, 183, 0, 0.06);
+}
+
+.cyber-badge.status-ingame {
+  border-color: rgba(0, 240, 255, 0.5);
+  color: var(--accent-cyan);
+  background: rgba(0, 240, 255, 0.08);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+}
+
+.indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.95); }
+}
+
+.pulse {
+  animation: pulse 2s infinite ease-in-out;
+}
+
+@keyframes radarSweep {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.radar-sweep {
+  animation: radarSweep 3s linear infinite;
+}
+
+@keyframes gridGlowPulse {
+  0%, 100% {
+    border-color: var(--border-neon);
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.25);
+  }
+  50% {
+    border-color: rgba(0, 240, 255, 0.6);
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+  }
+}
+
+.node-pulse-glow {
+  animation: gridGlowPulse 1.8s infinite ease-in-out;
+}
+
+/* Modal Backdrop & Dialog */
+.cyber-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.cyber-modal-container {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: 6px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), var(--glow-cyan);
+  max-width: 640px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.cyber-modal-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple), var(--accent-magenta));
+}
+
+/* Toast Floating Notifications */
+.cyber-toast {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-neon);
+  box-shadow: var(--glow-cyan);
+  padding: 14px 20px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 2000;
+  animation: slideUpFade 0.25s ease-out;
+}
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive Grid Helper */
+@media (max-width: 768px) {
+  body {
+    background-size: 100% 100%, 100% 100%, 24px 24px, 24px 24px;
+  }
+  
+  .btn-cyber-primary {
+    padding: 11px 24px;
+    font-size: 0.88rem;
+  }
+}
