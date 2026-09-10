@@ -11,6 +11,7 @@ import { MatchPage } from './pages/MatchPage';
 import { MatchHistoryPage } from './pages/MatchHistoryPage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
 import { MonitoringPage } from './pages/MonitoringPage';
+import { ReplayPage } from './pages/ReplayPage';
 
 export const App: React.FC = () => {
   return (
@@ -24,6 +25,7 @@ export const App: React.FC = () => {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/lobby" element={<LobbyPage />} />
             <Route path="/match/:matchId" element={<MatchPage />} />
+            <Route path="/replay/:matchId" element={<ReplayPage />} />
             <Route path="/history" element={<MatchHistoryPage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/monitoring" element={<MonitoringPage />} />

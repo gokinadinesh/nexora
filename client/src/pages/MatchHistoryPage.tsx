@@ -348,19 +348,33 @@ export const MatchHistoryPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Match Inspect CTA */}
-                <div>
+                {/* Match Inspect & Replay CTAs */}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <Link
+                    to={`/replay/${match.matchId}`}
+                    className="btn-cyber-primary"
+                    style={{
+                      padding: '8px 14px',
+                      fontSize: '0.8rem',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <span>▶</span> REPLAY
+                  </Link>
                   <Link
                     to={`/match/${match.matchId}`}
                     className="btn-cyber-secondary"
                     style={{
-                      padding: '8px 16px',
+                      padding: '8px 14px',
                       fontSize: '0.8rem',
                       textDecoration: 'none',
                       display: 'inline-block',
                     }}
                   >
-                    INSPECT LOGS →
+                    INSPECT →
                   </Link>
                 </div>
               </div>

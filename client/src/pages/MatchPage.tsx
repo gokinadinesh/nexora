@@ -1,10 +1,16 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { GAME_EVENTS, GridNode } from '@nexora/shared';
 import { useAuth } from '../hooks/useAuth';
 import { useSocket } from '../hooks/useSocket';
 import { useGameState } from '../hooks/useGameState';
 import { getSocket } from '../services/socket';
+import { cyberAudio } from '../services/CyberAudio';
+import { cyberAnnouncer } from '../services/CyberAnnouncer';
+import { CyberCanvasFX } from '../components/Game/CyberCanvasFX';
+import { TacticalPingOverlay, TacticalPing } from '../components/Game/TacticalPingOverlay';
+import { ClassSelectorModal, SUBROUTINES, OperativeSubroutine } from '../components/Game/ClassSelectorModal';
+import { HackingDecompileModal } from '../components/Game/HackingDecompileModal';
 
 export const MatchPage: React.FC = () => {
   const { matchId } = useParams<{ matchId: string }>();
@@ -12,6 +18,34 @@ export const MatchPage: React.FC = () => {
   const { isConnected } = useSocket();
   const navigate = useNavigate();
   const terminalEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Audio & Announcer Settings
+  const [isAudioMuted, setIsAudioMuted] = useState<boolean>(() => cyberAudio.getMuted());
+  const [isAnnouncerEnabled, setIsAnnouncerEnabled] = useState<boolean>(() => cyberAnnouncer.getEnabled());
+
+  // Tactical Subroutines / Class State
+  const [selectedClassId, setSelectedClassId] = useState<string>(() => {
+    return localStorage.getItem('nexora_tactical_class') || 'cryptanalyst';
+  });
+  const [showClassModal, setShowClassModal] = useState<boolean>(false);
+  const currentClass: OperativeSubroutine =
+    SUBROUTINES.find((s) => s.id === selectedClassId) || SUBROUTINES[0];
+
+  // Reverse Engineering Hacking Minigame Modal
+  const [showDecompileModal, setShowDecompileModal] = useState<boolean>(false);
+
+  // Camera Shake State
+  const [cameraShake, setCameraShake] = useState<'camera-shake-light' | 'camera-shake-heavy' | ''>('');
+  const triggerCameraShake = (intensity: 'light' | 'heavy') => {
+    setCameraShake(intensity === 'heavy' ? 'camera-shake-heavy' : 'camera-shake-light');
+    setTimeout(() => {
+      setCameraShake('');
+    }, 450);
+  };
+
+  // Tactical Ping Overlay State
+  const [pings, setPings] = useState<TacticalPing[]>([]);
+  const [activePingTool, setActivePingTool] = useState<'none' | 'attack' | 'defend' | 'scan'>('none');
 
   const {
     gameState,
@@ -24,6 +58,12 @@ export const MatchPage: React.FC = () => {
     dispatchAction,
     matchResult,
   } = useGameState(matchId, user?.id);
+
+  // Tracking refs for audio & speech triggers
+  const lastEventCountRef = useRef<number>(0);
+  const prevTurnRef = useRef<boolean>(false);
+  const matchAnnouncedRef = useRef<boolean>(false);
+  const matchCompletedRef = useRef<boolean>(false);
 
   // Join match room on mount
   useEffect(() => {
@@ -38,12 +78,99 @@ export const MatchPage: React.FC = () => {
     }
   }, [matchId, isAuthenticated, isLoading, navigate]);
 
+  // Initial link established announcement
+  useEffect(() => {
+    if (gameState && !matchAnnouncedRef.current) {
+      matchAnnouncedRef.current = true;
+      cyberAudio.playMoveSound();
+      cyberAnnouncer.announceMatchStart();
+    }
+  }, [gameState]);
+
+  // Turn transition audio & announcer
+  useEffect(() => {
+    if (gameState && gameState.status === 'ACTIVE') {
+      if (isMyTurn && !prevTurnRef.current) {
+        cyberAudio.playTurnNotification();
+        cyberAnnouncer.speak('Tactical priority acquired. Your turn.');
+      }
+      prevTurnRef.current = isMyTurn;
+    }
+  }, [isMyTurn, gameState]);
+
+  // Combat Event Stream Audio & Camera Shake
+  useEffect(() => {
+    if (!eventFeed || eventFeed.length === 0) return;
+    if (eventFeed.length <= lastEventCountRef.current) {
+      lastEventCountRef.current = eventFeed.length;
+      return;
+    }
+
+    const newEvents = eventFeed.slice(lastEventCountRef.current);
+    lastEventCountRef.current = eventFeed.length;
+
+    newEvents.forEach((evt) => {
+      if (evt.type === 'PLAYER_MOVED') {
+        cyberAudio.playMoveSound();
+      } else if (evt.type === 'NODE_CAPTURED') {
+        const isCore = evt.message.includes('SPECIAL') || evt.message.includes('200') || evt.message.includes('N22');
+        if (isCore) {
+          cyberAudio.playCaptureSound(true);
+          cyberAnnouncer.announceCoreContested();
+          triggerCameraShake('heavy');
+        } else {
+          cyberAudio.playCaptureSound(false);
+          triggerCameraShake('light');
+        }
+      } else if (evt.type === 'PLAYER_ATTACKED') {
+        cyberAudio.playAttackSound();
+        triggerCameraShake('light');
+        if (evt.message.includes('SHIELD') || evt.message.includes('DEFENDED') || evt.message.includes('BREACH')) {
+          cyberAudio.playAttackSound(true);
+          cyberAnnouncer.announceShieldBreach();
+        }
+      } else if (evt.type === 'NODE_DEFENDED') {
+        cyberAudio.playDefendSound();
+        cyberAnnouncer.announceShieldRaised();
+      }
+    });
+  }, [eventFeed]);
+
+  // Victory / Defeat announcement & fanfare
+  useEffect(() => {
+    if (gameState?.status === 'COMPLETED' && !matchCompletedRef.current) {
+      matchCompletedRef.current = true;
+      if (gameState.winnerId === user?.id) {
+        cyberAudio.playVictoryFanfare();
+        cyberAnnouncer.announceVictory();
+      } else {
+        cyberAudio.playDefeatSound();
+        cyberAnnouncer.announceDefeat();
+      }
+    }
+  }, [gameState?.status, gameState?.winnerId, user?.id]);
+
   // Auto-scroll combat terminal to bottom on new events
   useEffect(() => {
     if (terminalEndRef.current) {
       terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [eventFeed]);
+
+  const spawnPing = (nodeId: string, type: 'attack' | 'defend' | 'scan') => {
+    const newPing: TacticalPing = {
+      id: `ping-${Date.now()}-${Math.random()}`,
+      nodeId,
+      type,
+      timestamp: Date.now(),
+    };
+    setPings((prev) => [...prev.slice(-7), newPing]);
+    cyberAudio.playPingSound(type);
+
+    setTimeout(() => {
+      setPings((prev) => prev.filter((p) => p.id !== newPing.id));
+    }, 3200);
+  };
 
   if (isLoading || !gameState) {
     return (
@@ -86,7 +213,40 @@ export const MatchPage: React.FC = () => {
   const p1Progress = Math.min(100, Math.round(((p1?.score || 0) / 500) * 100));
   const p2Progress = Math.min(100, Math.round(((p2?.score || 0) / 500) * 100));
 
-  // Render 5x5 Grid Rows
+  // Node selection & right-click ping handling
+  const handleNodeClick = (nodeId: string) => {
+    if (activePingTool !== 'none') {
+      spawnPing(nodeId, activePingTool);
+      setActivePingTool('none');
+      return;
+    }
+    setSelectedNodeId(nodeId);
+    cyberAudio.playMoveSound();
+  };
+
+  const handleNodeContextMenu = (e: React.MouseEvent, nodeId: string) => {
+    e.preventDefault();
+    const node = gameState.grid[nodeId];
+    if (node?.owner === opponentPlayer?.role) {
+      spawnPing(nodeId, 'attack');
+    } else if (node?.owner === myPlayer?.role) {
+      spawnPing(nodeId, 'defend');
+    } else {
+      spawnPing(nodeId, 'scan');
+    }
+  };
+
+  // Reverse engineering decompile completion handler
+  const handleDecompileSuccess = () => {
+    setShowDecompileModal(false);
+    cyberAudio.playCaptureSound(true);
+    cyberAnnouncer.speak('Target decompiled. Initiating breach strike.');
+    if (selectedNodeId) {
+      dispatchAction('ATTACK', selectedNodeId);
+    }
+  };
+
+  // Render 5x5 Grid Rows with Canvas & Ping Overlays
   const renderGrid = () => {
     const rows = [0, 1, 2, 3, 4];
     const cols = [0, 1, 2, 3, 4];
@@ -94,208 +254,231 @@ export const MatchPage: React.FC = () => {
     return (
       <div
         style={{
-          display: 'grid',
-          gridTemplateRows: 'repeat(5, 1fr)',
-          gap: '12px',
+          position: 'relative',
           width: '100%',
           maxWidth: '580px',
           aspectRatio: '1 / 1',
           margin: '0 auto',
         }}
       >
-        {rows.map((row) => (
-          <div key={row} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
-            {cols.map((col) => {
-              const nodeId = `N${row}${col}`;
-              const node: GridNode = gameState.grid[nodeId];
-              const isSelected = selectedNodeId === nodeId;
-              const isP1Owner = node.owner === 'PLAYER_1';
-              const isP2Owner = node.owner === 'PLAYER_2';
-              const isNeutral = node.owner === 'NEUTRAL';
-              const isSpecial = node.type === 'SPECIAL';
+        {/* Hardware-Accelerated 2D Canvas FX (Laser Conduits, Shields, Shockwaves) */}
+        <CyberCanvasFX
+          grid={gameState.grid}
+          myPlayerRole={myPlayer?.role}
+          lastActionNodeId={selectedNodeId}
+        />
 
-              const hasP1Token = p1?.position === nodeId;
-              const hasP2Token = p2?.position === nodeId;
-              const adjacentToMe = isAdjacent(nodeId);
+        {/* Tactical Radar Ping Overlay */}
+        <TacticalPingOverlay pings={pings} />
 
-              let borderColor = 'var(--border-subtle)';
-              let bgColor = 'var(--bg-surface-elevated)';
-              let glow = 'none';
+        {/* Grid Button Elements */}
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 10,
+            display: 'grid',
+            gridTemplateRows: 'repeat(5, 1fr)',
+            gap: '12px',
+            width: '100%',
+            height: '100%',
+          }}
+        >
+          {rows.map((row) => (
+            <div key={row} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
+              {cols.map((col) => {
+                const nodeId = `N${row}${col}`;
+                const node: GridNode = gameState.grid[nodeId];
+                const isSelected = selectedNodeId === nodeId;
+                const isP1Owner = node.owner === 'PLAYER_1';
+                const isP2Owner = node.owner === 'PLAYER_2';
+                const isNeutral = node.owner === 'NEUTRAL';
+                const isSpecial = node.type === 'SPECIAL';
 
-              if (isP1Owner) {
-                borderColor = 'var(--accent-cyan)';
-                bgColor = 'rgba(0, 240, 255, 0.09)';
-                glow = '0 0 12px rgba(0, 240, 255, 0.2)';
-              } else if (isP2Owner) {
-                borderColor = 'var(--accent-magenta)';
-                bgColor = 'rgba(255, 0, 85, 0.09)';
-                glow = '0 0 12px rgba(255, 0, 85, 0.2)';
-              }
+                const hasP1Token = p1?.position === nodeId;
+                const hasP2Token = p2?.position === nodeId;
+                const adjacentToMe = isAdjacent(nodeId);
 
-              if (isSpecial) {
-                if (isNeutral) {
-                  borderColor = 'rgba(255, 184, 0, 0.6)';
-                  glow = '0 0 16px rgba(255, 184, 0, 0.25)';
+                let borderColor = 'var(--border-subtle)';
+                let bgColor = 'rgba(10, 14, 26, 0.75)';
+                let glow = 'none';
+
+                if (isP1Owner) {
+                  borderColor = 'var(--accent-cyan)';
+                  bgColor = 'rgba(0, 240, 255, 0.12)';
+                  glow = '0 0 14px rgba(0, 240, 255, 0.25)';
+                } else if (isP2Owner) {
+                  borderColor = 'var(--accent-magenta)';
+                  bgColor = 'rgba(255, 0, 85, 0.12)';
+                  glow = '0 0 14px rgba(255, 0, 85, 0.25)';
                 }
-              }
 
-              if (isSelected) {
-                borderColor = '#ffffff';
-                glow = '0 0 18px rgba(255, 255, 255, 0.7)';
-              } else if (adjacentToMe && isMyTurn) {
-                borderColor = 'var(--accent-green)';
-                glow = '0 0 12px rgba(0, 255, 136, 0.35)';
-              }
+                if (isSpecial) {
+                  if (isNeutral) {
+                    borderColor = 'rgba(255, 184, 0, 0.6)';
+                    glow = '0 0 18px rgba(255, 184, 0, 0.3)';
+                  }
+                }
 
-              return (
-                <button
-                  key={nodeId}
-                  type="button"
-                  onClick={() => setSelectedNodeId(nodeId)}
-                  style={{
-                    border: `2px solid ${borderColor}`,
-                    background: bgColor,
-                    boxShadow: glow,
-                    borderRadius: '6px',
-                    padding: '8px 6px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    position: 'relative',
-                    transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
-                    minHeight: '84px',
-                    outline: 'none',
-                  }}
-                >
-                  {/* Node Header: ID & Special Badge */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.7rem',
-                        color: isSelected ? '#ffffff' : 'var(--text-muted)',
-                        fontWeight: isSelected ? 700 : 400,
-                      }}
-                    >
-                      {nodeId}
-                    </span>
-                    {isSpecial && (
+                if (isSelected) {
+                  borderColor = '#ffffff';
+                  glow = '0 0 20px rgba(255, 255, 255, 0.75)';
+                } else if (adjacentToMe && isMyTurn) {
+                  borderColor = 'var(--accent-green)';
+                  glow = '0 0 14px rgba(0, 255, 136, 0.4)';
+                }
+
+                return (
+                  <button
+                    key={nodeId}
+                    type="button"
+                    onClick={() => handleNodeClick(nodeId)}
+                    onContextMenu={(e) => handleNodeContextMenu(e, nodeId)}
+                    style={{
+                      border: `2px solid ${borderColor}`,
+                      background: bgColor,
+                      boxShadow: glow,
+                      borderRadius: '6px',
+                      padding: '8px 6px',
+                      cursor: activePingTool !== 'none' ? 'crosshair' : 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      position: 'relative',
+                      transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+                      minHeight: '84px',
+                      outline: 'none',
+                    }}
+                  >
+                    {/* Node Header: ID & Special Badge */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                       <span
                         style={{
-                          fontSize: '0.65rem',
                           fontFamily: 'var(--font-mono)',
-                          color: 'var(--accent-amber)',
-                          background: 'rgba(255, 184, 0, 0.2)',
-                          border: '1px solid rgba(255, 184, 0, 0.4)',
-                          padding: '1px 5px',
-                          borderRadius: '2px',
-                          fontWeight: 800,
-                        }}
-                        title="Special Central Node: 200 PTS"
-                      >
-                        ★ 200
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Operative Tokens or Node Center Symbol */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
-                    {hasP1Token && (
-                      <div
-                        style={{
-                          padding: '2px 8px',
-                          background: 'var(--accent-cyan)',
-                          color: '#050811',
-                          fontFamily: 'var(--font-display)',
                           fontSize: '0.7rem',
-                          fontWeight: 900,
-                          borderRadius: '3px',
-                          boxShadow: '0 0 10px var(--accent-cyan)',
-                          letterSpacing: '0.05em',
+                          color: isSelected ? '#ffffff' : 'var(--text-muted)',
+                          fontWeight: isSelected ? 700 : 400,
                         }}
                       >
-                        ▲ {p1?.displayName?.slice(0, 5).toUpperCase() || 'P1'}
-                      </div>
-                    )}
-                    {hasP2Token && (
-                      <div
-                        style={{
-                          padding: '2px 8px',
-                          background: 'var(--accent-magenta)',
-                          color: '#ffffff',
-                          fontFamily: 'var(--font-display)',
-                          fontSize: '0.7rem',
-                          fontWeight: 900,
-                          borderRadius: '3px',
-                          boxShadow: '0 0 10px var(--accent-magenta)',
-                          letterSpacing: '0.05em',
-                        }}
-                      >
-                        ▼ {p2?.displayName?.slice(0, 5).toUpperCase() || 'P2'}
-                      </div>
-                    )}
-                    {!hasP1Token && !hasP2Token && (
-                      <div
-                        style={{
-                          fontSize: '1rem',
-                          color: isSelected ? '#ffffff' : isNeutral ? 'var(--text-muted)' : borderColor,
-                          lineHeight: 1,
-                        }}
-                      >
-                        {isNeutral ? '○' : '◈'}
-                      </div>
-                    )}
-                  </div>
+                        {nodeId}
+                      </span>
+                      {isSpecial && (
+                        <span
+                          style={{
+                            fontSize: '0.65rem',
+                            fontFamily: 'var(--font-mono)',
+                            color: 'var(--accent-amber)',
+                            background: 'rgba(255, 184, 0, 0.2)',
+                            border: '1px solid rgba(255, 184, 0, 0.4)',
+                            padding: '1px 5px',
+                            borderRadius: '2px',
+                            fontWeight: 800,
+                          }}
+                          title="Special Central Node: 200 PTS"
+                        >
+                          ★ 200
+                        </span>
+                      )}
+                    </div>
 
-                  {/* Node Footer: Shield Status & Owner Value */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                    {node.isDefended ? (
-                      <span
-                        style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: '0.65rem',
-                          color: 'var(--accent-cyan)',
-                          background: 'rgba(0, 240, 255, 0.25)',
-                          border: '1px solid var(--accent-cyan)',
-                          padding: '1px 5px',
-                          borderRadius: '2px',
-                          fontWeight: 800,
-                        }}
-                      >
-                        🛡 SHIELD
-                      </span>
-                    ) : (
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                        {isP1Owner ? 'P1' : isP2Owner ? 'P2' : 'NEUTRAL'}
-                      </span>
-                    )}
+                    {/* Operative Tokens or Node Center Symbol */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+                      {hasP1Token && (
+                        <div
+                          style={{
+                            padding: '2px 8px',
+                            background: 'var(--accent-cyan)',
+                            color: '#050811',
+                            fontFamily: 'var(--font-display)',
+                            fontSize: '0.7rem',
+                            fontWeight: 900,
+                            borderRadius: '3px',
+                            boxShadow: '0 0 10px var(--accent-cyan)',
+                            letterSpacing: '0.05em',
+                          }}
+                        >
+                          ▲ {p1?.displayName?.slice(0, 5).toUpperCase() || 'P1'}
+                        </div>
+                      )}
+                      {hasP2Token && (
+                        <div
+                          style={{
+                            padding: '2px 8px',
+                            background: 'var(--accent-magenta)',
+                            color: '#ffffff',
+                            fontFamily: 'var(--font-display)',
+                            fontSize: '0.7rem',
+                            fontWeight: 900,
+                            borderRadius: '3px',
+                            boxShadow: '0 0 10px var(--accent-magenta)',
+                            letterSpacing: '0.05em',
+                          }}
+                        >
+                          ▼ {p2?.displayName?.slice(0, 5).toUpperCase() || 'P2'}
+                        </div>
+                      )}
+                      {!hasP1Token && !hasP2Token && (
+                        <div
+                          style={{
+                            fontSize: '1rem',
+                            color: isSelected ? '#ffffff' : isNeutral ? 'var(--text-muted)' : borderColor,
+                            lineHeight: 1,
+                          }}
+                        >
+                          {isNeutral ? '○' : '◈'}
+                        </div>
+                      )}
+                    </div>
 
-                    {adjacentToMe && isMyTurn && (
-                      <span
-                        style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: '0.6rem',
-                          color: 'var(--accent-green)',
-                          fontWeight: 700,
-                        }}
-                      >
-                        TARGET
-                      </span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        ))}
+                    {/* Node Footer: Shield Status & Owner Value */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                      {node.isDefended ? (
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '0.65rem',
+                            color: 'var(--accent-cyan)',
+                            background: 'rgba(0, 240, 255, 0.25)',
+                            border: '1px solid var(--accent-cyan)',
+                            padding: '1px 5px',
+                            borderRadius: '2px',
+                            fontWeight: 800,
+                          }}
+                        >
+                          🛡 SHIELD
+                        </span>
+                      ) : (
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                          {isP1Owner ? 'P1' : isP2Owner ? 'P2' : 'NEUTRAL'}
+                        </span>
+                      )}
+
+                      {adjacentToMe && isMyTurn && (
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '0.6rem',
+                            color: 'var(--accent-green)',
+                            fontWeight: 700,
+                          }}
+                        >
+                          TARGET
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
     );
   };
 
   return (
     <div
+      className={cameraShake}
       style={{
         flex: 1,
         display: 'flex',
@@ -321,7 +504,7 @@ export const MatchPage: React.FC = () => {
       >
         <div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--accent-cyan)', letterSpacing: '0.15em' }}>
-            [CYBERGRID COMBAT ARENA // 5X5 SERVER-AUTHORITATIVE ENGINE]
+            [CYBERGRID COMBAT ARENA // AAA PRO ESPORTS ENGINE]
           </div>
           <h1 style={{ fontSize: '1.7rem', letterSpacing: '0.08em', color: 'var(--text-primary)', margin: '4px 0' }}>
             NEXORA BATTLE ARENA
@@ -335,18 +518,63 @@ export const MatchPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Dynamic Turn Status Banner */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+        {/* Audio Toggles & Tactical Subroutine Selector */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => {
+              const muted = cyberAudio.toggleMute();
+              setIsAudioMuted(muted);
+            }}
+            className="btn-cyber-ghost"
+            style={{ padding: '7px 12px', fontSize: '0.75rem' }}
+            title={isAudioMuted ? 'Unmute Procedural Audio' : 'Mute Procedural Audio'}
+          >
+            {isAudioMuted ? '🔇 AUDIO OFF' : '🔊 AUDIO ON'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const enabled = cyberAnnouncer.toggle();
+              setIsAnnouncerEnabled(enabled);
+            }}
+            className="btn-cyber-ghost"
+            style={{ padding: '7px 12px', fontSize: '0.75rem' }}
+            title={isAnnouncerEnabled ? 'Disable Announcer Voice' : 'Enable Announcer Voice'}
+          >
+            {isAnnouncerEnabled ? '🎙 ANNOUNCER ON' : '🎙 ANNOUNCER OFF'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowClassModal(true)}
+            className="btn-cyber-secondary"
+            style={{
+              padding: '7px 14px',
+              fontSize: '0.75rem',
+              borderColor: currentClass.color,
+              color: currentClass.color,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+            title="Configure Tactical Subroutine Class"
+          >
+            <span>{currentClass.badge}</span>
+            <span>{currentClass.name}</span>
+          </button>
+
           {isMyTurn ? (
             <div
               style={{
-                padding: '10px 20px',
+                padding: '8px 16px',
                 background: 'rgba(0, 240, 255, 0.15)',
                 border: '2px solid var(--accent-cyan)',
                 borderRadius: '6px',
                 boxShadow: 'var(--glow-cyan)',
                 fontFamily: 'var(--font-display)',
-                fontSize: '1rem',
+                fontSize: '0.9rem',
                 color: 'var(--accent-cyan)',
                 fontWeight: 800,
                 letterSpacing: '0.08em',
@@ -356,17 +584,17 @@ export const MatchPage: React.FC = () => {
               }}
             >
               <span className="indicator-dot pulse" style={{ background: 'var(--accent-cyan)' }} />
-              <span>YOUR TURN // EXECUTE AUTHORITATIVE ACTION</span>
+              <span>YOUR TURN</span>
             </div>
           ) : (
             <div
               style={{
-                padding: '10px 20px',
+                padding: '8px 16px',
                 background: 'rgba(255, 184, 0, 0.1)',
                 border: '1px solid var(--accent-amber)',
                 borderRadius: '6px',
                 fontFamily: 'var(--font-display)',
-                fontSize: '1rem',
+                fontSize: '0.9rem',
                 color: 'var(--accent-amber)',
                 letterSpacing: '0.08em',
                 display: 'flex',
@@ -375,7 +603,7 @@ export const MatchPage: React.FC = () => {
               }}
             >
               <span className="indicator-dot pulse" style={{ background: 'var(--accent-amber)' }} />
-              <span>OPPONENT TRANSMITTING // MONITORING GRID</span>
+              <span>OPPONENT TRANSMITTING</span>
             </div>
           )}
 
@@ -383,7 +611,7 @@ export const MatchPage: React.FC = () => {
             type="button"
             onClick={() => navigate('/lobby')}
             className="btn-cyber-ghost"
-            style={{ padding: '8px 16px', fontSize: '0.8rem' }}
+            style={{ padding: '8px 14px', fontSize: '0.8rem' }}
           >
             ← LOBBY
           </button>
@@ -547,6 +775,83 @@ export const MatchPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Tactical Beacon / Ping Radar Selector Bar */}
+      <div
+        className="cyber-card"
+        style={{
+          padding: '10px 20px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            TACTICAL BEACON RADAR:
+          </span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+            (Right-click any node to quick-ping or select a tool below)
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => setActivePingTool(activePingTool === 'attack' ? 'none' : 'attack')}
+            className="btn-cyber-ghost"
+            style={{
+              padding: '5px 12px',
+              fontSize: '0.75rem',
+              borderColor: activePingTool === 'attack' ? 'var(--accent-magenta)' : 'var(--border-subtle)',
+              color: activePingTool === 'attack' ? 'var(--accent-magenta)' : 'var(--text-muted)',
+              background: activePingTool === 'attack' ? 'rgba(255, 0, 85, 0.15)' : 'transparent',
+            }}
+          >
+            ⚡ ATTACK BEACON
+          </button>
+          <button
+            type="button"
+            onClick={() => setActivePingTool(activePingTool === 'defend' ? 'none' : 'defend')}
+            className="btn-cyber-ghost"
+            style={{
+              padding: '5px 12px',
+              fontSize: '0.75rem',
+              borderColor: activePingTool === 'defend' ? 'var(--accent-cyan)' : 'var(--border-subtle)',
+              color: activePingTool === 'defend' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+              background: activePingTool === 'defend' ? 'rgba(0, 240, 255, 0.15)' : 'transparent',
+            }}
+          >
+            🛡 DEFEND BEACON
+          </button>
+          <button
+            type="button"
+            onClick={() => setActivePingTool(activePingTool === 'scan' ? 'none' : 'scan')}
+            className="btn-cyber-ghost"
+            style={{
+              padding: '5px 12px',
+              fontSize: '0.75rem',
+              borderColor: activePingTool === 'scan' ? 'var(--accent-amber)' : 'var(--border-subtle)',
+              color: activePingTool === 'scan' ? 'var(--accent-amber)' : 'var(--text-muted)',
+              background: activePingTool === 'scan' ? 'rgba(255, 184, 0, 0.15)' : 'transparent',
+            }}
+          >
+            📡 SCAN BEACON
+          </button>
+          {activePingTool !== 'none' && (
+            <button
+              type="button"
+              onClick={() => setActivePingTool('none')}
+              className="btn-cyber-ghost"
+              style={{ padding: '5px 10px', fontSize: '0.7rem', color: 'var(--accent-red)' }}
+            >
+              ✕ CANCEL
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Main Battle Area: 5x5 CyberGrid & Tactical Action Dock */}
       <div
         style={{
@@ -643,6 +948,32 @@ export const MatchPage: React.FC = () => {
               >
                 CLICK ANY GREEN-HIGHLIGHTED ADJACENT NODE TO TARGET
               </div>
+            )}
+
+            {/* Reverse Engineering Decompile CTA if enemy shield detected */}
+            {canAttack && selectedNode?.isDefended && (
+              <button
+                type="button"
+                onClick={() => setShowDecompileModal(true)}
+                className="btn-cyber-primary"
+                style={{
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  background: 'linear-gradient(135deg, rgba(0, 240, 255, 0.25), rgba(255, 0, 85, 0.25))',
+                  border: '2px solid var(--accent-cyan)',
+                  boxShadow: '0 0 16px rgba(0, 240, 255, 0.3)',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-display)',
+                  letterSpacing: '0.08em',
+                }}
+              >
+                <span>🔓</span>
+                <span>REVERSE ENGINEER (DECOMPILE HOSTILE SHIELD)</span>
+              </button>
             )}
 
             {/* Action Command Grid */}
@@ -784,6 +1115,29 @@ export const MatchPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Tactical Subroutine Class Selector Modal */}
+      <ClassSelectorModal
+        isOpen={showClassModal}
+        selectedClassId={selectedClassId}
+        onSelectClass={(sub: OperativeSubroutine) => {
+          setSelectedClassId(sub.id);
+          localStorage.setItem('nexora_tactical_class', sub.id);
+          cyberAudio.playPingSound('scan');
+          cyberAnnouncer.speak(`Tactical subroutine ${sub.name} engaged.`);
+        }}
+        onClose={() => setShowClassModal(false)}
+      />
+
+      {/* Reverse Engineering Decompile Minigame Modal */}
+      {selectedNode && (
+        <HackingDecompileModal
+          isOpen={showDecompileModal}
+          targetNodeId={selectedNode.id}
+          onSuccess={handleDecompileSuccess}
+          onClose={() => setShowDecompileModal(false)}
+        />
+      )}
 
       {/* Grand Victory / Defeat Post-Match Modal */}
       {gameState.status === 'COMPLETED' && (
@@ -938,16 +1292,34 @@ export const MatchPage: React.FC = () => {
               )}
             </div>
 
-            {/* CTAs */}
+            {/* CTAs including Esports Replay */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => navigate(`/replay/${gameState.matchId}`)}
+                className="btn-cyber-primary"
+                style={{
+                  padding: '16px',
+                  width: '100%',
+                  fontSize: '1.05rem',
+                  letterSpacing: '0.12em',
+                  background: 'linear-gradient(135deg, rgba(0, 240, 255, 0.3), rgba(0, 255, 136, 0.3))',
+                  borderColor: 'var(--accent-cyan)',
+                  boxShadow: 'var(--glow-cyan)',
+                }}
+              >
+                ▶ LAUNCH ESPORTS REPLAY THEATER
+              </button>
+
               <button
                 type="button"
                 onClick={() => navigate('/lobby')}
                 className="btn-cyber-primary"
-                style={{ padding: '16px', width: '100%', fontSize: '1.05rem', letterSpacing: '0.12em' }}
+                style={{ padding: '14px', width: '100%', fontSize: '0.95rem', letterSpacing: '0.08em' }}
               >
                 ⚡ PLAY AGAIN (ENTER COMMAND LOBBY)
               </button>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <button
                   type="button"
