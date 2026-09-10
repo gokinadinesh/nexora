@@ -10,11 +10,11 @@ export class LobbyService {
    * Strictly omits emails, passwords, and private credentials.
    */
   async getLobbyData(): Promise<LobbyResponse> {
-    const onlineIds = presenceService.getOnlineUserIds();
+    const onlineIds = await presenceService.getOnlineUserIds();
     const users = await userRepository.findByIds(onlineIds);
 
-    const players: LobbyPlayer[] = users.map((u) => {
-      const status = presenceService.getStatus(u.id);
+    const players: LobbyPlayer[] = await Promise.all(users.map(async (u) => {
+      const status = await presenceService.getStatus(u.id);
       return {
         id: u.id,
         username: u.username,
@@ -23,7 +23,7 @@ export class LobbyService {
         rating: u.rating !== undefined ? Number(u.rating) : 1000,
         status,
       };
-    });
+    }));
 
     return {
       playersOnline: players.length,

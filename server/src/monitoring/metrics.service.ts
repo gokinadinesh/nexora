@@ -105,7 +105,7 @@ export class MetricsService {
     }
   }
 
-  getMetrics(healthStatus?: SystemHealthStatus): MonitoringMetricsResponse {
+  async getMetrics(healthStatus?: SystemHealthStatus): Promise<MonitoringMetricsResponse> {
     this.pruneTimestamps();
     const now = Date.now();
     const uptimeSeconds = Math.floor((now - this.startTime) / 1000);
@@ -127,9 +127,9 @@ export class MetricsService {
     const actionsPerSecond = Math.round((this.actionTimestamps.length / 10) * 10) / 10;
     const eventsPerSecond = Math.round((this.eventTimestamps.length / 10) * 10) / 10;
 
-    const activePlayers = presenceService.getOnlineCount();
-    const activeMatches = matchSessionService.getActiveSessionCount();
-    const matchmakingQueue = matchmakingService.getQueueSize();
+    const activePlayers = await presenceService.getOnlineCount();
+    const activeMatches = await matchSessionService.getActiveSessionCount();
+    const matchmakingQueue = await matchmakingService.getQueueSize();
 
     const platform: PlatformMetrics = {
       activePlayers,

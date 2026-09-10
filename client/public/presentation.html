@@ -548,9 +548,37 @@
       </div>
     </div>
 
-    <!-- SLIDE 6: Live Demo Transition -->
+    <!-- SLIDE 6: MNC Comparison -->
+    <div class="slide" data-notes="When comparing NEXORA to traditional Multi-MNC gaming studios, the architectural difference is staggering. MNC studios often throw massive 50-person level design teams at a problem, resulting in multi-gigabyte static asset bakes and bloated UI interfaces that require loading screens. We engineered NEXORA to deliver the same level of professional, intensive gaming depth through intelligent procedural generation. Our CyberGrid creates dynamic, tactically deep levels with zero asset bloat. Combined with our ultra-responsive Glassmorphic UI and 100% server-authoritative state, we deliver an uncompromised AAA esports experience directly in the browser—with absolute competitive integrity and zero loading screens.">
+      <div class="slide-tag">[SLIDE 06 // MNC AAA VS. NEXORA]</div>
+      <h2 class="slide-title"><span>MULTI-MNC</span> STUDIOS VS. <span>NEXORA</span></h2>
+      <div class="grid-2">
+        <div class="card card-border-magenta">
+          <div class="card-title card-title-magenta">🏢 THE OLD WAY (MULTI-MNC STUDIOS)</div>
+          <div class="card-body">
+            <ul class="bullet-list">
+              <li><strong>Bloated Assets:</strong> 50+ person level design teams relying on multi-gigabyte static bakes.</li>
+              <li><strong>UI/UX Friction:</strong> Heavy UI frameworks requiring 5-10 second loading screens per interaction.</li>
+              <li><strong>Vulnerable State:</strong> Hardcoded state machines easily manipulated via client-side memory injection.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="card card-border-cyan card-glow-cyan">
+          <div class="card-title">⚡ THE NEW STANDARD (NEXORA)</div>
+          <div class="card-body">
+            <ul class="bullet-list">
+              <li><strong>Procedural Depth:</strong> CyberGrid matrix generates tactically deep levels infinitely, zero asset bloat.</li>
+              <li><strong>Zero-Latency UI:</strong> Instant feedback loops via 60 FPS Canvas transitions and Glassmorphic UX.</li>
+              <li><strong>Absolute Integrity:</strong> 100% Server-Authoritative state ensuring untamperable competitive balance.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 7: Live Demo Transition -->
     <div class="slide" data-notes="Now let's switch to the live demo. We will show real-time matchmaking across two browser windows, legal Manhattan moves, energy shield deployment, the reverse engineering decompile minigame, and tactical pings.">
-      <div class="slide-tag">[SLIDE 06 // PRODUCT DEMONSTRATION]</div>
+      <div class="slide-tag">[SLIDE 07 // PRODUCT DEMONSTRATION]</div>
       <h2 class="slide-title">LIVE COMBAT: <span>5×5 CYBERGRID</span></h2>
       <div class="card card-demo-box">
         <p class="demo-lead-text">
@@ -570,9 +598,9 @@
       </div>
     </div>
 
-    <!-- SLIDE 7: Esports Replay Theater -->
+    <!-- SLIDE 8: Esports Replay Theater -->
     <div class="slide" data-notes="True esports requires total reviewability. NEXORA features a complete Esports Replay Theater at /replay/:matchId. Every turn is reconstructed from PostgreSQL audit logs. Referees and players can scrub the timeline and adjust speed from 0.5x to 2x with audio playback.">
-      <div class="slide-tag">[SLIDE 07 // COMPETITIVE REVIEW]</div>
+      <div class="slide-tag">[SLIDE 08 // COMPETITIVE REVIEW]</div>
       <h2 class="slide-title"><span>ESPORTS</span> REPLAY THEATER</h2>
       <div class="grid-2">
         <div class="card">
@@ -600,9 +628,9 @@
       </div>
     </div>
 
-    <!-- SLIDE 8: Enterprise Security & Telemetry -->
+    <!-- SLIDE 9: Enterprise Security & Telemetry -->
     <div class="slide" data-notes="Under the hood, NEXORA is built like high-frequency financial software. We enforce 250ms rate limits, monotonic state versions, idempotency keys, and a rule-based anomaly detection engine that scores suspicious activity from 0 to 100.">
-      <div class="slide-tag">[SLIDE 08 // SECURITY & RELIABILITY]</div>
+      <div class="slide-tag">[SLIDE 09 // SECURITY & RELIABILITY]</div>
       <h2 class="slide-title">ENTERPRISE <span>SECURITY</span> & TELEMETRY</h2>
       <div class="grid-3">
         <div class="card">
@@ -641,9 +669,9 @@
       </div>
     </div>
 
-    <!-- SLIDE 9: Production Architecture -->
+    <!-- SLIDE 10: Production Architecture -->
     <div class="slide" data-notes="NEXORA is production-ready today. The frontend is live on Google Firebase Hosting with global CDN routing. The backend is containerized with Docker and 1-click Render blueprints, and 100% verified by our 9 regression test suites.">
-      <div class="slide-tag">[SLIDE 09 // PRODUCTION READINESS]</div>
+      <div class="slide-tag">[SLIDE 10 // PRODUCTION READINESS]</div>
       <h2 class="slide-title"><span>MULTI-CLOUD</span> ARCHITECTURE</h2>
       <div class="grid-2">
         <div class="card">
@@ -672,9 +700,9 @@
       </div>
     </div>
 
-    <!-- SLIDE 10: Conclusion & Q&A -->
+    <!-- SLIDE 11: Conclusion & Q&A -->
     <div class="slide" data-notes="To conclude: NEXORA proves that with server-authoritative distributed systems and procedural browser capabilities, you can build a true AAA cyber-strategy esports platform. Fast, tamper-proof, audio-rich, and production-ready. Thank you judges, we are open for questions!">
-      <div class="slide-tag">[SLIDE 10 // CONCLUSION & DEFENSE]</div>
+      <div class="slide-tag">[SLIDE 11 // CONCLUSION & DEFENSE]</div>
       <h2 class="slide-title"><span>NEXORA</span>: THE FUTURE OF CYBER ESPORTS</h2>
       <div class="grid-3 conclusion-grid">
         <div class="card card-center">
@@ -710,7 +738,7 @@
   </div>
 
   <footer>
-    <div id="slide-indicator">SLIDE 01 / 10</div>
+    <div id="slide-indicator">SLIDE 01 / 11</div>
     <div class="progress-bar-container">
       <div id="progress-bar" class="progress-bar"></div>
     </div>
@@ -729,7 +757,7 @@
       slides.forEach((s, i) => {
         s.classList.toggle('active', i === index);
       });
-      indicator.textContent = `SLIDE 0${index + 1} / 10`.replace('010', '10');
+      indicator.textContent = `SLIDE 0${index + 1} / 11`.replace('010', '10').replace('011', '11');
       progressBar.style.width = `${((index + 1) / slides.length) * 100}%`;
       
       const currentNotes = slides[index].getAttribute('data-notes') || 'No notes for this slide.';

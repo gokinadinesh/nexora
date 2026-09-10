@@ -41,7 +41,27 @@ export async function request<T>(
     headers,
   });
 
-  const data = await response.json().catch(() => null);
+  let data = null;
+  const contentType = response.headers.get('content-type');
+  
+  try {
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      // If the response is ok but not JSON (like an HTML fallback from a SPA router), it's an error for an API
+      if (response.ok && text.trim().startsWith('<')) {
+        throw new Error('API route not found. Received HTML instead of JSON. Ensure the backend is deployed and VITE_API_URL is set.');
+      }
+      data = { message: text };
+    }
+  } catch (err: any) {
+    if (err.name !== 'Error') { // Don't catch the error we just threw
+      data = { message: 'Invalid JSON response from server' };
+    } else {
+      throw err;
+    }
+  }
 
   if (!response.ok) {
     const errorMessage = data?.message || data?.error || `Request failed with status ${response.status}`;

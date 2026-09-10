@@ -14,17 +14,20 @@ import { userRepository } from '../repositories/user.repository';
 import { getSocketServer } from '../sockets';
 import { lobbyService } from './lobby.service';
 import { logger } from '../utils/logger';
+import { IMatchmakingStore, InMemoryMatchmakingStore } from '../stores/matchmaking.store';
+
+export const matchmakingStore: IMatchmakingStore = new InMemoryMatchmakingStore();
 
 export class MatchmakingService {
-  private waitingQueue: QueueEntry[] = [];
-  private isProcessingQueue = false;
+  constructor(private store: IMatchmakingStore = matchmakingStore) {}
 
   /**
    * Evaluates if a player is eligible to join the matchmaking queue.
    */
   async checkEligibility(userId: string): Promise<{ eligible: boolean; errorCode?: string; message?: string }> {
     // 1. Online check
-    if (!presenceService.isOnline(userId)) {
+    const isOnline = await presenceService.isOnline(userId);
+    if (!isOnline) {
       return {
         eligible: false,
         errorCode: 'PLAYER_OFFLINE',
@@ -33,7 +36,8 @@ export class MatchmakingService {
     }
 
     // 2. Already queued check
-    const isQueued = this.waitingQueue.some((entry) => entry.userId === userId);
+    const queue = await this.store.getQueue();
+    const isQueued = queue.some((entry) => entry.userId === userId);
     if (isQueued) {
       return {
         eligible: false,
@@ -43,7 +47,7 @@ export class MatchmakingService {
     }
 
     // 3. Active match check
-    const isInMatch = matchSessionService.isUserInActiveMatch(userId);
+    const isInMatch = await matchSessionService.isUserInActiveMatch(userId);
     if (isInMatch) {
       return {
         eligible: false,
@@ -96,24 +100,25 @@ export class MatchmakingService {
       metadata: { rating: newEntry.rating },
     });
 
-    // Lock matchmaking to safely execute match pairing
     return await this.atomicMatchOrEnqueue(newEntry);
   }
 
   private async atomicMatchOrEnqueue(newEntry: QueueEntry): Promise<MatchmakingJoinResponse> {
-    while (this.isProcessingQueue) {
-      // Yield to avoid race conditions
+    // Wait for queue lock
+    while (!(await this.store.lockQueue())) {
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
 
-    this.isProcessingQueue = true;
     try {
       // Find suitable opponent in queue
-      const opponentIndex = this.findBestOpponentIndex(newEntry);
+      const queue = await this.store.getQueue();
+      const opponentIndex = this.findBestOpponentIndex(queue, newEntry);
 
       if (opponentIndex !== -1) {
         // Matched!
-        const opponent = this.waitingQueue.splice(opponentIndex, 1)[0];
+        const opponent = queue.splice(opponentIndex, 1)[0];
+        await this.store.setQueue(queue); // Update queue after removing opponent
+        
         logger.info(`Matchmaking: Match found between ${newEntry.username} and ${opponent.username}!`);
 
         // Create match in DB & active session
@@ -133,8 +138,8 @@ export class MatchmakingService {
         });
 
         // Update player statuses to IN_GAME
-        presenceService.setStatus(opponent.userId, PLAYER_STATUS.IN_GAME);
-        presenceService.setStatus(newEntry.userId, PLAYER_STATUS.IN_GAME);
+        await presenceService.setStatus(opponent.userId, PLAYER_STATUS.IN_GAME);
+        await presenceService.setStatus(newEntry.userId, PLAYER_STATUS.IN_GAME);
         lobbyService.broadcastPresence(opponent.userId, opponent.username, PLAYER_STATUS.IN_GAME);
         lobbyService.broadcastPresence(newEntry.userId, newEntry.username, PLAYER_STATUS.IN_GAME);
 
@@ -174,8 +179,10 @@ export class MatchmakingService {
       }
 
       // No opponent found -> add to waiting queue
-      this.waitingQueue.push(newEntry);
-      presenceService.setStatus(newEntry.userId, PLAYER_STATUS.QUEUED);
+      await this.store.enqueue(newEntry);
+      const queueLength = await this.store.getQueueLength();
+      
+      await presenceService.setStatus(newEntry.userId, PLAYER_STATUS.QUEUED);
       lobbyService.broadcastPresence(newEntry.userId, newEntry.username, PLAYER_STATUS.QUEUED);
 
       try {
@@ -184,7 +191,7 @@ export class MatchmakingService {
         if (socket) {
           socket.emit(GAME_EVENTS.QUEUE_STATUS, {
             status: QUEUE_STATUS.QUEUED,
-            queuePosition: this.waitingQueue.length,
+            queuePosition: queueLength,
             queuedAt: newEntry.queuedAt,
           });
         }
@@ -194,10 +201,10 @@ export class MatchmakingService {
 
       return {
         status: QUEUE_STATUS.QUEUED,
-        queuePosition: this.waitingQueue.length,
+        queuePosition: queueLength,
       };
     } finally {
-      this.isProcessingQueue = false;
+      await this.store.unlockQueue();
     }
   }
 
@@ -205,20 +212,19 @@ export class MatchmakingService {
    * Rating-aware FIFO matching strategy.
    * Checks queue from oldest to newest with rating tolerance.
    */
-  private findBestOpponentIndex(candidate: QueueEntry): number {
+  private findBestOpponentIndex(queue: QueueEntry[], candidate: QueueEntry): number {
     const now = Date.now();
 
-    for (let i = 0; i < this.waitingQueue.length; i++) {
-      const waiting = this.waitingQueue[i];
+    for (let i = 0; i < queue.length; i++) {
+      const waiting = queue[i];
       if (waiting.userId === candidate.userId) continue;
 
       const waitDuration = now - waiting.queuedAt;
       const ratingDiff = Math.abs(waiting.rating - candidate.rating);
 
-      // Window expands dynamically over time
-      let allowedDiff = 150; // base rating window
+      let allowedDiff = 150;
       if (waitDuration > 5000) allowedDiff = 300;
-      if (waitDuration > 10000) allowedDiff = 10000; // Pair with anyone waiting a while
+      if (waitDuration > 10000) allowedDiff = 10000;
 
       if (ratingDiff <= allowedDiff) {
         return i;
@@ -231,18 +237,15 @@ export class MatchmakingService {
   /**
    * Removes a player from the matchmaking queue.
    */
-  leaveQueue(userId: string): { status: QueueStatus } {
-    const initialLen = this.waitingQueue.length;
-    this.waitingQueue = this.waitingQueue.filter((entry) => entry.userId !== userId);
+  async leaveQueue(userId: string): Promise<{ status: QueueStatus }> {
+    const removed = await this.store.dequeue(userId);
 
-    if (this.waitingQueue.length < initialLen) {
-      presenceService.setStatus(userId, PLAYER_STATUS.ONLINE);
-      const user = userRepository.findById(userId);
-      user.then((u) => {
-        if (u) {
-          lobbyService.broadcastPresence(u.id, u.username, PLAYER_STATUS.ONLINE);
-        }
-      });
+    if (removed) {
+      await presenceService.setStatus(userId, PLAYER_STATUS.ONLINE);
+      const user = await userRepository.findById(userId);
+      if (user) {
+        lobbyService.broadcastPresence(user.id, user.username, PLAYER_STATUS.ONLINE);
+      }
       logger.info(`Matchmaking: User ${userId} removed from queue`);
     }
 
@@ -252,15 +255,17 @@ export class MatchmakingService {
   /**
    * Handles player disconnection by safely removing them from queue.
    */
-  handleDisconnect(userId: string, socketId?: string): void {
-    const wasQueued = this.waitingQueue.some(
+  async handleDisconnect(userId: string, socketId?: string): Promise<void> {
+    const queue = await this.store.getQueue();
+    const wasQueued = queue.some(
       (entry) => entry.userId === userId || (socketId && entry.socketId === socketId)
     );
 
     if (wasQueued) {
-      this.waitingQueue = this.waitingQueue.filter(
+      const newQueue = queue.filter(
         (entry) => entry.userId !== userId && (!socketId || entry.socketId !== socketId)
       );
+      await this.store.setQueue(newQueue);
       logger.info(`Matchmaking: Disconnected user ${userId} removed from queue`);
     }
   }
@@ -268,10 +273,12 @@ export class MatchmakingService {
   /**
    * Gets current queue status for a player.
    */
-  getQueueStatus(userId: string): { status: QueueStatus; queuePosition?: number; queuedAt?: number } {
-    const index = this.waitingQueue.findIndex((entry) => entry.userId === userId);
+  async getQueueStatus(userId: string): Promise<{ status: QueueStatus; queuePosition?: number; queuedAt?: number }> {
+    const queue = await this.store.getQueue();
+    const index = queue.findIndex((entry) => entry.userId === userId);
+    
     if (index !== -1) {
-      const entry = this.waitingQueue[index];
+      const entry = queue[index];
       return {
         status: QUEUE_STATUS.QUEUED,
         queuePosition: index + 1,
@@ -279,9 +286,8 @@ export class MatchmakingService {
       };
     }
 
-    const inMatch = matchSessionService.isUserInActiveMatch(userId);
+    const inMatch = await matchSessionService.isUserInActiveMatch(userId);
     if (inMatch) {
-      const session = matchSessionService.getSessionByUserId(userId);
       return {
         status: QUEUE_STATUS.MATCH_FOUND,
       };
@@ -290,16 +296,16 @@ export class MatchmakingService {
     return { status: QUEUE_STATUS.NOT_QUEUED };
   }
 
-  getQueueLength(): number {
-    return this.waitingQueue.length;
+  async getQueueLength(): Promise<number> {
+    return this.store.getQueueLength();
   }
 
-  getQueueSize(): number {
-    return this.waitingQueue.length;
+  async getQueueSize(): Promise<number> {
+    return this.store.getQueueLength();
   }
 
-  clearQueue(): void {
-    this.waitingQueue = [];
+  async clearQueue(): Promise<void> {
+    return this.store.clearQueue();
   }
 }
 

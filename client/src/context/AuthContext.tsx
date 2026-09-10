@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { AuthenticatedUser, LoginRequest, RegisterRequest } from '@nexora/shared';
+import { AuthenticatedUser, LoginRequest, RegisterRequest, GoogleLoginRequest } from '@nexora/shared';
 import { authService } from '../services/auth.service';
 import { getStoredToken } from '../services/api';
 import { reconnectSocketWithAuth } from '../services/socket';
@@ -10,6 +10,7 @@ export interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (data: LoginRequest) => Promise<void>;
+  googleLogin: (data: GoogleLoginRequest) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => void;
 }
@@ -55,6 +56,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     reconnectSocketWithAuth(res.token);
   };
 
+  const googleLogin = async (data: GoogleLoginRequest) => {
+    const res = await authService.googleLogin(data);
+    setUser(res.user);
+    setToken(res.token);
+    reconnectSocketWithAuth(res.token);
+  };
+
   const register = async (data: RegisterRequest) => {
     const res = await authService.register(data);
     setUser(res.user);
@@ -77,6 +85,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isLoading,
         isAuthenticated: !!user,
         login,
+        googleLogin,
         register,
         logout,
       }}

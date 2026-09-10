@@ -41,6 +41,9 @@ export interface User {
   wins?: number;
   losses?: number;
   matchesPlayed?: number;
+  level?: number;
+  xp?: number;
+  milestoneTitle?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -61,6 +64,10 @@ export interface RegisterRequest {
 export interface LoginRequest {
   email: string;
   password: string;
+}
+
+export interface GoogleLoginRequest {
+  token: string; // The Google ID token
 }
 
 export interface AuthResponse {
@@ -88,6 +95,9 @@ export interface PlayerProfile {
   wins: number;
   losses: number;
   matchesPlayed: number;
+  level: number;
+  xp: number;
+  milestoneTitle: string;
   status: PlayerStatus | string;
   createdAt: string;
   totalScore?: number;
@@ -277,6 +287,8 @@ export interface LeaderboardEntry {
   losses: number;
   matchesPlayed: number;
   winRate: number; // percentage, e.g. 66.7
+  level: number;
+  milestoneTitle: string;
   currentWinStreak?: number;
   bestWinStreak?: number;
   totalScore?: number;

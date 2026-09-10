@@ -7,7 +7,8 @@ import {
 } from '@nexora/shared';
 import { matchRepository, IMatchRepository } from '../repositories/match.repository';
 import { userRepository, IUserRepository } from '../repositories/user.repository';
-import { matchSessionService, MatchSessionService, ActiveMatchSession } from './match-session.service';
+import { matchSessionService, MatchSessionService } from './match-session.service';
+import { ActiveMatchSession } from '../stores/match-session.store';
 import { MatchRow, MatchPlayerRow, toMatchSessionDetails } from '../models/match.model';
 import { gameEngine } from '../game';
 import { logger } from '../utils/logger';
@@ -33,7 +34,7 @@ export class MatchService {
     await this.matchRepo.addPlayerToMatch(match.id, player2.userId);
 
     // 3. Create active in-memory session
-    const session = this.sessionService.createSession(match.id, [
+    const session = await this.sessionService.createSession(match.id, [
       { userId: player1.userId, socketId: player1.socketId },
       { userId: player2.userId, socketId: player2.socketId },
     ]);

@@ -62,19 +62,20 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
 
   // Periodic metrics broadcaster to operator room
   if (!metricsInterval) {
-    metricsInterval = setInterval(() => {
+    metricsInterval = setInterval(async () => {
       if (io && io.sockets.adapter.rooms.get('monitoring')?.size) {
-        io.to('monitoring').emit(GAME_EVENTS.MONITORING_METRICS_UPDATED, metricsService.getMetrics());
+        const metrics = await metricsService.getMetrics();
+        io.to('monitoring').emit(GAME_EVENTS.MONITORING_METRICS_UPDATED, metrics);
       }
     }, 2000);
   }
 
-  io.on('connection', (socket: Socket) => {
+  io.on('connection', async (socket: Socket) => {
     const user = socket.data.user;
     metricsService.incrementWebsocket();
 
     if (user) {
-      const { isFirstConnection } = presenceService.addConnection(user.id, socket.id);
+      const { isFirstConnection } = await presenceService.addConnection(user.id, socket.id);
       logger.info('player socket connected', `[id: ${socket.id}, user: ${user.username}]`);
 
       eventsService.recordEvent({
@@ -88,18 +89,19 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
       }
 
       // Re-link socket if user has an active match session
-      const activeSession = matchSessionService.getSessionByUserId(user.id);
+      const activeSession = await matchSessionService.getSessionByUserId(user.id);
       if (activeSession) {
-        matchSessionService.updatePlayerSocket(user.id, socket.id);
+        await matchSessionService.updatePlayerSocket(user.id, socket.id);
         socket.join(`match:${activeSession.matchId}`);
       }
 
       // Operator Monitoring Subscription Handlers
-      socket.on(GAME_EVENTS.MONITORING_SUBSCRIBE, () => {
+      socket.on(GAME_EVENTS.MONITORING_SUBSCRIBE, async () => {
         if (user.role === 'OPERATOR') {
           socket.join('monitoring');
           logger.info(`Monitoring: Operator ${user.username} subscribed to monitoring stream`);
-          socket.emit(GAME_EVENTS.MONITORING_METRICS_UPDATED, metricsService.getMetrics());
+          const metrics = await metricsService.getMetrics();
+          socket.emit(GAME_EVENTS.MONITORING_METRICS_UPDATED, metrics);
         } else {
           securityService.recordSecurityEvent({
             type: 'UNAUTHORIZED_ACCESS',
@@ -136,8 +138,8 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
         }
       });
 
-      socket.on(GAME_EVENTS.QUEUE_LEFT, () => {
-        const result = matchmakingService.leaveQueue(user.id);
+      socket.on(GAME_EVENTS.QUEUE_LEFT, async () => {
+        const result = await matchmakingService.leaveQueue(user.id);
         eventsService.recordEvent({
           type: 'QUEUE_LEFT',
           userId: user.id,
@@ -146,8 +148,8 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
         socket.emit(GAME_EVENTS.QUEUE_STATUS, result);
       });
 
-      socket.on(GAME_EVENTS.QUEUE_STATUS, () => {
-        const status = matchmakingService.getQueueStatus(user.id);
+      socket.on(GAME_EVENTS.QUEUE_STATUS, async () => {
+        const status = await matchmakingService.getQueueStatus(user.id);
         socket.emit(GAME_EVENTS.QUEUE_STATUS, status);
       });
 
@@ -160,7 +162,7 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
           if (isMember) {
             const matchRoom = `match:${payload.matchId}`;
             socket.join(matchRoom);
-            matchSessionService.updatePlayerSocket(user.id, socket.id);
+            await matchSessionService.updatePlayerSocket(user.id, socket.id);
 
             // Record operational event
             eventsService.recordEvent({
@@ -408,7 +410,7 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
       logger.info('player socket connected', `[id: ${socket.id}]`);
     }
 
-    socket.on('disconnect', (reason) => {
+    socket.on('disconnect', async (reason) => {
       metricsService.decrementWebsocket();
       logger.info('player socket disconnected', `[id: ${socket.id}, reason: ${reason}]`);
 
@@ -421,12 +423,12 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
         });
 
         // Disconnect from matchmaking queue if queued
-        matchmakingService.handleDisconnect(user.id, socket.id);
+        await matchmakingService.handleDisconnect(user.id, socket.id);
 
         // Update match session socket if in match
-        matchSessionService.handlePlayerDisconnect(socket.id);
+        await matchSessionService.handlePlayerDisconnect(socket.id);
 
-        const { isLastConnection } = presenceService.removeConnection(socket.id);
+        const { isLastConnection } = await presenceService.removeConnection(socket.id);
         if (isLastConnection) {
           lobbyService.broadcastPresence(user.id, user.username, 'OFFLINE');
         }

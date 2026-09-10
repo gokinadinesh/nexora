@@ -25,6 +25,16 @@ export class AuthController {
     }
   }
 
+  async googleLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { token } = req.body;
+      const result = await authService.googleLogin({ token });
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.user) {
@@ -56,7 +66,7 @@ export class AuthController {
         return;
       }
 
-      const status = presenceService.getStatus(userRow.id);
+      const status = await presenceService.getStatus(userRow.id);
       const profile = toPlayerProfile(userRow, status);
 
       res.status(200).json(profile);
@@ -136,7 +146,7 @@ export class AuthController {
         avatar: avatar !== undefined ? avatar.trim() : undefined,
       });
 
-      const status = presenceService.getStatus(updatedRow.id);
+      const status = await presenceService.getStatus(updatedRow.id);
       const profile = toPlayerProfile(updatedRow, status);
 
       res.status(200).json(profile);

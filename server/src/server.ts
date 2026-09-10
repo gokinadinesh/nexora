@@ -3,6 +3,7 @@ import { createApp } from './app';
 import { config, validateConfig } from './config/env';
 import { initSocketServer, closeSocketServer } from './sockets';
 import { checkDatabaseConnection, closeDatabasePool } from './config/db';
+import { runMigrations } from './db/run-migrations';
 import { setServerShuttingDown } from './controllers/readiness.controller';
 import { matchmakingService } from './services/matchmaking.service';
 import { logger } from './utils/logger';
@@ -32,6 +33,7 @@ async function bootstrap() {
   // 3. Database connection readiness check
   try {
     await checkDatabaseConnection();
+    await runMigrations();
   } catch (err: any) {
     logger.warn('Initial database check encountered an error:', err.message);
   }

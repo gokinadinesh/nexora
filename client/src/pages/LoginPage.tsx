@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { GoogleLogin } from '@react-oauth/google';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -9,8 +10,19 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    try {
+      if (credentialResponse.credential) {
+        await googleLogin({ token: credentialResponse.credential });
+        navigate('/lobby');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Google Authentication failed');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,6 +155,27 @@ export const LoginPage: React.FC = () => {
             </button>
           </div>
         </form>
+
+        <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.72rem',
+            color: 'var(--text-muted)',
+            letterSpacing: '0.12em',
+            marginBottom: '16px',
+            textAlign: 'center',
+          }}>
+            OR AUTHENTICATE VIA SECURE IDENTITY PROVIDER
+          </div>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError('Google Authentication was cancelled or failed')}
+            theme="filled_black"
+            shape="rectangular"
+            text="continue_with"
+            width="100%"
+          />
+        </div>
 
         {/* Demo Quick-Fill Presets for Presentation */}
         <div style={{ marginTop: '28px', borderTop: '1px solid var(--border-subtle)', paddingTop: '20px' }}>

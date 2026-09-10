@@ -16,11 +16,12 @@
 | **03** | **The Solution: NEXORA** | Server-authoritative grid & deep engineering mechanics | 1:00 – 1:30 |
 | **04** | **Forward vs. Reverse Engineering** | Net-Architect (relays) vs. Cryptanalyst (decompilation) | 1:30 – 2:15 |
 | **05** | **Zero-Bloat Tech Stack** | Procedural Web Audio, Web Speech Announcer, Canvas FX | 2:15 – 3:00 |
-| **06** | **LIVE DEMO: Dual Operative Combat** | Real-time matchmaking, breach minigame, pings | 3:00 – 4:30 |
-| **07** | **Esports Replay Theater** | Audit log playback, scrubbers, competitive ELO | 4:30 – 5:15 |
-| **08** | **Enterprise Security & Telemetry** | Anomaly detection, idempotency, rate limiting, RBAC | 5:15 – 5:45 |
-| **09** | **Production & Multi-Cloud Architecture** | Firebase Hosting, Render/Railway, PostgreSQL, Docker | 5:45 – 6:15 |
-| **10** | **Conclusion & Judge Q&A Defense** | Competitive advantage, impact, open for questions | 6:15 – 7:00 |
+| **06** | **MNC vs. NEXORA: Level & UI/UX Design** | Comparison against multi-MNC studios on level creation | 3:00 – 3:30 |
+| **07** | **LIVE DEMO: Dual Operative Combat** | Real-time matchmaking, breach minigame, pings | 3:30 – 5:00 |
+| **08** | **Esports Replay Theater** | Audit log playback, scrubbers, competitive ELO | 5:00 – 5:45 |
+| **09** | **Enterprise Security & Telemetry** | Anomaly detection, idempotency, rate limiting, RBAC | 5:45 – 6:15 |
+| **10** | **Production & Multi-Cloud Architecture** | Firebase Hosting, Render/Railway, PostgreSQL, Docker | 6:15 – 6:45 |
+| **11** | **Conclusion & Judge Q&A Defense** | Competitive advantage, impact, open for questions | 6:45 – 7:30 |
 
 ---
 
@@ -77,6 +78,7 @@
 **🗣️ Speaker Script (1:00 – 1:30):**
 
 > *"NEXORA solves this with three pillars:  
+>
 > 1. **Absolute Server Authority**: The server is the single source of truth. Every turn, action, and point is verified by our Node/PostgreSQL state machine. Malicious packets, out-of-turn moves, or illegal coordinates are immediately intercepted and logged as security anomalies.  
 > 2. **Deep Strategic Gameplay**: We integrated dual engineering loops — operatives can either forward-engineer data networks or reverse-engineer enemy defenses in real-time minigames.  
 > 3. **Instant Zero-Bloat Performance**: Everything — from the sound effects to the voice announcer to the particle shockwaves — is generated procedurally in native browser APIs. No external MP3s. Zero load time."*
@@ -122,14 +124,38 @@
 **🗣️ Speaker Script (2:15 – 3:00):**
 
 > *"Let's talk engineering craftsmanship. Traditional AAA games rely on massive asset pipelines. In NEXORA:  
+>
 > - Our **sound effects engine** is built with 100% pure procedural code using the browser's native Web Audio API. Harmonic capture chords, 40Hz sub-bass shockwaves, laser zaps, and 4-tone victory fanfares are all calculated via mathematical frequencies at runtime.  
 > - Our **tactical combat announcer** leverages native browser Speech Synthesis with automated voice selection, lower robotic pitch, and snappy military cadence.  
 > - Our **visual conduit mesh** renders on a hardware-accelerated 2D canvas running at a locked 60 FPS, with dynamic circuit pulses, rotating hexagonal shields, and particle shockwaves.  
+>
 > The result? A broadcast-grade sensory experience that loads in under 1 second."*
 
 ---
 
-### SLIDE 6: LIVE DEMO — THE 5×5 CYBERGRID IN ACTION
+### SLIDE 6: MNC AAA STUDIOS VS. NEXORA AGILE ARCHITECTURE
+
+**Visual Elements:**
+
+- Split-Screen Comparison:
+  - 🏢 **Multi-MNC Gaming Studios (The Old Way)**
+    - 50+ person level design teams relying on multi-gigabyte static asset bakes.
+    - Bloated UI/UX frameworks requiring 5-10 second loading screens per interaction.
+    - Hardcoded state machines vulnerable to client-side memory manipulation.
+  - ⚡ **NEXORA Engineering (The New Standard)**
+    - Procedural CyberGrid matrix that generates dynamic, tactically deep levels infinitely.
+    - Zero-latency Glassmorphism UI/UX — instant feedback loops, 60 FPS Canvas transitions.
+    - 100% Server-Authoritative State ensuring untamperable competitive integrity.
+
+**🗣️ Speaker Script (3:00 – 3:30):**
+
+> *"When you compare NEXORA to traditional Multi-MNC gaming studios, the architectural difference is staggering.  
+> MNC studios often throw massive 50-person level design teams at a problem, resulting in multi-gigabyte static asset bakes and bloated, sluggish UI interfaces that require loading screens.  
+> We engineered NEXORA to deliver the same level of professional, intensive gaming depth through intelligent procedural generation. Our CyberGrid creates dynamic, tactically deep levels with zero asset bloat. Combined with our ultra-responsive Glassmorphic UI and 100% server-authoritative state, we deliver an uncompromised AAA esports experience directly in the browser—with absolute competitive integrity and zero loading screens."*
+
+---
+
+### SLIDE 7: LIVE DEMO — THE 5×5 CYBERGRID IN ACTION
 
 **Visual Elements / Live Screen:**
 
@@ -158,7 +184,7 @@
 
 ---
 
-### SLIDE 7: ESPORTS REPLAY THEATER & COMPETITIVE PROGRESSION
+### SLIDE 8: ESPORTS REPLAY THEATER & COMPETITIVE PROGRESSION
 
 **Visual Elements:**
 
@@ -177,7 +203,7 @@
 
 ---
 
-### SLIDE 8: ENTERPRISE SECURITY, TELEMETRY & ANTI-TAMPERING
+### SLIDE 9: ENTERPRISE SECURITY, TELEMETRY & ANTI-TAMPERING
 
 **Visual Elements:**
 
@@ -191,13 +217,14 @@
 **🗣️ Speaker Script (5:15 – 5:45):**
 
 > *"Under the hood, NEXORA is engineered like high-frequency financial software:  
+>
 > - **State Versioning**: Every game state has a strict monotonic version. If a client attempts to submit an action against an old state, the server rejects it.  
 > - **Idempotency**: Every transaction has a unique action UUID, preventing replay attacks and duplicate socket emissions.  
 > - **Anomaly Detection Engine**: We built a real-time rule-based anomaly detector. Rapid actions, unauthorized match snooping, and invalid coordinate jumps escalate an operative's anomaly score from Low to Critical, alerting human game masters in our Operator Dashboard."*
 
 ---
 
-### SLIDE 9: PRODUCTION-READY & MULTI-CLOUD ARCHITECTURE
+### SLIDE 10: PRODUCTION-READY & MULTI-CLOUD ARCHITECTURE
 
 **Visual Elements:**
 
@@ -210,13 +237,14 @@
 **🗣️ Speaker Script (5:45 – 6:15):**
 
 > *"NEXORA is not a toy prototype — it is in production right now.  
+>
 > - Our frontend is live on **Google Firebase Hosting** with global edge CDN routing and strict security headers.  
 > - Our backend is containerized with multi-stage Docker builds and declarative Infrastructure-as-Code blueprints for Render and Railway, complete with Kubernetes-style `/api/ready` probes and sensitive telemetry redaction.  
 > - Most importantly, every single piece of logic is verified by **9 comprehensive regression test suites**, ensuring zero regressions across database schemas, JWT authentication, matchmaking queues, game engine mechanics, and security monitors."*
 
 ---
 
-### SLIDE 10: CONCLUSION & JUDGE DEFENSE CHEAT SHEET
+### SLIDE 11: CONCLUSION & JUDGE DEFENSE CHEAT SHEET
 
 **Visual Elements:**
 

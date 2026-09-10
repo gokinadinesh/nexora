@@ -1,6 +1,7 @@
 import {
   AuthResponse,
   AuthenticatedUser,
+  GoogleLoginRequest,
   LoginRequest,
   PlayerProfile,
   ProfileUpdateRequest,
@@ -24,6 +25,19 @@ export const authService = {
 
   async login(data: LoginRequest): Promise<AuthResponse> {
     const result = await request<AuthResponse>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+
+    if (result.token) {
+      setStoredToken(result.token);
+    }
+
+    return result;
+  },
+
+  async googleLogin(data: GoogleLoginRequest): Promise<AuthResponse> {
+    const result = await request<AuthResponse>('/api/auth/google', {
       method: 'POST',
       body: JSON.stringify(data),
     });

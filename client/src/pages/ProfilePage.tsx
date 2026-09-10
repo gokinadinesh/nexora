@@ -160,8 +160,26 @@ export const ProfilePage: React.FC = () => {
                 {profile?.displayName || user?.username}
               </h1>
               <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                CALLSIGN: @{profile?.username} // EMAIL: {profile?.email}
+                CALLSIGN: @{profile?.username} // LEVEL {profile?.level || 1} {profile?.milestoneTitle?.toUpperCase()} // EMAIL: {profile?.email}
               </p>
+              
+              {/* XP Progress Bar */}
+              <div style={{ marginTop: '12px', maxWidth: '300px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  <span>XP: {profile?.xp?.toLocaleString() || 0}</span>
+                  <span>NEXT LEVEL: {(500 * Math.pow(profile?.level || 1, 2)).toLocaleString()} XP</span>
+                </div>
+                <div style={{ height: '6px', background: 'var(--bg-surface)', borderRadius: '3px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+                  <div 
+                    style={{ 
+                      height: '100%', 
+                      background: 'var(--accent-cyan)', 
+                      width: `${Math.min(100, Math.max(0, ((profile?.xp || 0) - (500 * Math.pow((profile?.level || 1) - 1, 2))) / ((500 * Math.pow(profile?.level || 1, 2)) - (500 * Math.pow((profile?.level || 1) - 1, 2))) * 100))}%`,
+                      boxShadow: 'var(--glow-cyan)' 
+                    }} 
+                  />
+                </div>
+              </div>
             </div>
           </div>
 

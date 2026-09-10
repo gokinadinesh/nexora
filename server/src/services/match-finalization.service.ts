@@ -4,6 +4,7 @@ import { userRepository } from '../repositories/user.repository';
 import { gameRepository } from '../repositories/game.repository';
 import { ratingService } from './rating.service';
 import { matchSessionService } from './match-session.service';
+import { progressionService } from './progression.service';
 import { logger } from '../utils/logger';
 
 export interface FinalizeGameParams {
@@ -126,6 +127,20 @@ export class MatchFinalizationService {
         isDraw,
         score: fp.score,
       });
+
+      // 5.5 Update 100-Level Progression
+      try {
+        await progressionService.grantMatchXP(
+          matchId,
+          fp.userId,
+          isWinner,
+          isDraw,
+          fp.score,
+          durationSeconds
+        );
+      } catch (err) {
+        logger.error(`MatchFinalization: Failed to grant XP for user ${fp.userId} in match ${matchId}`, err);
+      }
     }
 
     // 6. Record audit log event

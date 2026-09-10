@@ -7,7 +7,7 @@ import { logger } from '../utils/logger';
 
 export interface IDatabasePool {
   query<T = any>(text: string, params?: any[]): Promise<{ rows: T[]; rowCount: number | null }>;
-  connect(): Promise<{ release: () => void }>;
+  connect(): Promise<{ query<T = any>(text: string, params?: any[]): Promise<{ rows: T[]; rowCount: number | null }>; release: () => void }>;
 }
 
 let pool: IDatabasePool | null = null;
@@ -107,6 +107,7 @@ function createMemoryPool(): IDatabasePool {
 
   // Search candidate directories for migrations
   const candidateDirs = [
+    path.resolve(__dirname, '../db/migrations'),
     path.resolve(__dirname, '../migrations'),
     path.resolve(__dirname, '../../src/migrations'),
     path.resolve(process.cwd(), 'src/migrations'),
@@ -228,6 +229,10 @@ export async function checkDatabaseConnection(): Promise<boolean> {
 
 export function isDbConnected(): boolean {
   return isConnected;
+}
+
+export function isUsingMemoryDb(): boolean {
+  return isMemoryFallback || process.env.USE_MEMORY_DB === 'true';
 }
 
 /**

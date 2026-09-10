@@ -1,10 +1,13 @@
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { AuthResponse, AuthenticatedUser, LoginRequest, RegisterRequest, User } from '@nexora/shared';
+import { AuthResponse, AuthenticatedUser, LoginRequest, RegisterRequest, User, GoogleLoginRequest } from '@nexora/shared';
 import { IUserRepository, userRepository } from '../repositories/user.repository';
+import { authProviderRepository } from '../repositories/auth-provider.repository';
 import { toSafeUser } from '../models/user.model';
 import { config } from '../config/env';
+import { OAuth2Client } from 'google-auth-library';
+import { progressionService } from './progression.service';
 
 export class AuthService {
   constructor(private userRepo: IUserRepository = userRepository) {}
@@ -72,6 +75,8 @@ export class AuthService {
       role,
     });
 
+    await progressionService.initializeProgression(userRow.id);
+
     const safeUser: User = toSafeUser(userRow);
 
     // 8. Generate JWT
@@ -119,6 +124,97 @@ export class AuthService {
     return {
       user: safeUser,
       token,
+    };
+  }
+
+  /**
+   * Authenticates a user via Google Sign-In.
+   */
+  async googleLogin(data: GoogleLoginRequest): Promise<AuthResponse> {
+    const { token } = data;
+    if (!token) {
+      const err: any = new Error('Google ID token is required');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (!config.googleClientId) {
+      const err: any = new Error('Google Sign-In is not configured on the server');
+      err.statusCode = 501;
+      throw err;
+    }
+
+    const client = new OAuth2Client(config.googleClientId);
+
+    let ticket;
+    try {
+      ticket = await client.verifyIdToken({
+        idToken: token,
+        audience: config.googleClientId,
+      });
+    } catch (e) {
+      const err: any = new Error('Invalid Google token');
+      err.statusCode = 401;
+      throw err;
+    }
+
+    const payload = ticket.getPayload();
+    if (!payload || !payload.sub || !payload.email) {
+      const err: any = new Error('Incomplete Google token payload');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const providerSub = payload.sub;
+    const email = payload.email.toLowerCase();
+
+    // 1. Check if we already have this google account linked
+    const linkedProvider = await authProviderRepository.findByProvider('google', providerSub);
+    
+    let userRow;
+
+    if (linkedProvider) {
+      userRow = await this.userRepo.findById(linkedProvider.user_id);
+      if (!userRow) {
+        const err: any = new Error('Linked user not found');
+        err.statusCode = 500;
+        throw err;
+      }
+    } else {
+      // 2. See if a user with this email already exists
+      userRow = await this.userRepo.findByEmail(email);
+      
+      if (userRow) {
+        // Link the existing account
+        await authProviderRepository.linkProvider(userRow.id, 'google', providerSub);
+      } else {
+        // 3. Create a new user entirely
+        const usernameBase = payload.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') + Math.floor(Math.random() * 1000);
+        const randomPassword = crypto.randomBytes(32).toString('hex');
+        const passwordHash = await bcrypt.hash(randomPassword, 10);
+        const id = crypto.randomUUID();
+
+        userRow = await this.userRepo.create({
+          id,
+          username: usernameBase.substring(0, 24),
+          email,
+          passwordHash,
+          role: 'PLAYER',
+          displayName: payload.name ? payload.name.substring(0, 30) : usernameBase.substring(0, 30),
+          avatar: payload.picture ? payload.picture.substring(0, 255) : 'default_operative'
+        });
+
+        await authProviderRepository.linkProvider(id, 'google', providerSub);
+        await progressionService.initializeProgression(userRow.id);
+      }
+    }
+
+    const safeUser = toSafeUser(userRow);
+    const jwtToken = this.generateToken(safeUser);
+
+    return {
+      user: safeUser,
+      token: jwtToken,
     };
   }
 

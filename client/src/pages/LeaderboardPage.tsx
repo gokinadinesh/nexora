@@ -401,6 +401,7 @@ export const LeaderboardPage: React.FC = () => {
                 <th style={{ padding: '16px 20px', width: '80px' }}>RANK</th>
                 <th style={{ padding: '16px 20px' }}>OPERATIVE</th>
                 <th style={{ padding: '16px 20px' }}>TIER</th>
+                <th style={{ padding: '16px 20px' }}>LEVEL</th>
                 <th style={{ padding: '16px 20px' }}>RATING</th>
                 <th style={{ padding: '16px 20px' }}>WIN RATE</th>
                 <th style={{ padding: '16px 20px' }}>W / L</th>
@@ -518,6 +519,18 @@ export const LeaderboardPage: React.FC = () => {
                       {/* Tier */}
                       <td style={{ padding: '16px 20px' }}>
                         <CyberBadge type="rank" value={eTier} />
+                      </td>
+
+                      {/* Level */}
+                      <td style={{ padding: '16px 20px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            LVL {entry.level || 1}
+                          </span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                            {entry.milestoneTitle?.toUpperCase() || 'RECRUIT'}
+                          </span>
+                        </div>
                       </td>
 
                       {/* Rating */}

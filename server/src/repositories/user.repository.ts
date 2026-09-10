@@ -28,9 +28,10 @@ export interface IUserRepository {
 
 export class PostgresUserRepository implements IUserRepository {
   private baseSelect = `
-    id, username, email, password_hash, display_name, avatar, role,
-    rating, wins, losses, matches_played, total_score, best_score,
-    current_win_streak, best_win_streak, created_at, updated_at
+    users.id, users.username, users.email, users.password_hash, users.display_name, users.avatar, users.role,
+    users.rating, users.wins, users.losses, users.matches_played, users.total_score, users.best_score,
+    users.current_win_streak, users.best_win_streak, users.created_at, users.updated_at,
+    pp.level, pp.xp, pp.milestone_title
   `;
 
   async create(data: CreateUserDTO): Promise<UserRow> {
@@ -46,13 +47,15 @@ export class PostgresUserRepository implements IUserRepository {
         current_win_streak, best_win_streak, created_at, updated_at
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, 1000, 0, 0, 0, 0, 0, 0, 0, NOW(), NOW())
-      RETURNING ${this.baseSelect}
+      RETURNING id
     `;
     const values = [data.id, data.username, data.email, data.passwordHash, displayName, avatar, role];
 
     try {
-      const result = await pool.query<UserRow>(query, values);
-      return result.rows[0];
+      const result = await pool.query<{ id: string }>(query, values);
+      const newRow = await this.findById(result.rows[0].id);
+      if (!newRow) throw new Error('Failed to create user');
+      return newRow;
     } catch (error: any) {
       if (error.code === '23505') {
         // Unique violation in Postgres
@@ -76,7 +79,8 @@ export class PostgresUserRepository implements IUserRepository {
     const query = `
       SELECT ${this.baseSelect}
       FROM users
-      WHERE LOWER(email) = LOWER($1)
+      LEFT JOIN player_progression pp ON pp.user_id = users.id
+      WHERE LOWER(users.email) = LOWER($1)
       LIMIT 1
     `;
     const result = await pool.query<UserRow>(query, [email]);
@@ -88,7 +92,8 @@ export class PostgresUserRepository implements IUserRepository {
     const query = `
       SELECT ${this.baseSelect}
       FROM users
-      WHERE LOWER(username) = LOWER($1)
+      LEFT JOIN player_progression pp ON pp.user_id = users.id
+      WHERE LOWER(users.username) = LOWER($1)
       LIMIT 1
     `;
     const result = await pool.query<UserRow>(query, [username]);
@@ -100,7 +105,8 @@ export class PostgresUserRepository implements IUserRepository {
     const query = `
       SELECT ${this.baseSelect}
       FROM users
-      WHERE id = $1
+      LEFT JOIN player_progression pp ON pp.user_id = users.id
+      WHERE users.id = $1
       LIMIT 1
     `;
     const result = await pool.query<UserRow>(query, [id]);
@@ -117,7 +123,8 @@ export class PostgresUserRepository implements IUserRepository {
     const query = `
       SELECT ${this.baseSelect}
       FROM users
-      WHERE id IN (${placeholders})
+      LEFT JOIN player_progression pp ON pp.user_id = users.id
+      WHERE users.id IN (${placeholders})
     `;
     const result = await pool.query<UserRow>(query, ids);
     return result.rows;
@@ -146,17 +153,19 @@ export class PostgresUserRepository implements IUserRepository {
       UPDATE users
       SET ${fields.join(', ')}
       WHERE id = $${idx}
-      RETURNING ${this.baseSelect}
+      RETURNING id
     `;
 
-    const result = await pool.query<UserRow>(query, values);
+    const result = await pool.query<{ id: string }>(query, values);
     if (result.rows.length === 0) {
       const err: any = new Error('User not found');
       err.statusCode = 404;
       throw err;
     }
 
-    return result.rows[0];
+    const updatedUser = await this.findById(userId);
+    if (!updatedUser) throw new Error('User not found after update');
+    return updatedUser;
   }
 
   // Trusted server-authoritative methods for future game stages
@@ -241,10 +250,10 @@ export class PostgresUserRepository implements IUserRepository {
           best_win_streak = $8,
           updated_at = NOW()
       WHERE id = $9
-      RETURNING ${this.baseSelect}
+      RETURNING id
     `;
 
-    const result = await pool.query<UserRow>(query, [
+    await pool.query(query, [
       newRating,
       newWins,
       newLosses,
@@ -256,7 +265,9 @@ export class PostgresUserRepository implements IUserRepository {
       userId,
     ]);
 
-    return result.rows[0];
+    const updatedUser = await this.findById(userId);
+    if (!updatedUser) throw new Error('User not found after competitive stats update');
+    return updatedUser;
   }
 
   async findLeaderboard(page: number = 1, limit: number = 20): Promise<LeaderboardResponse> {
@@ -270,10 +281,12 @@ export class PostgresUserRepository implements IUserRepository {
 
     const query = `
       SELECT
-        id, username, display_name, avatar, rating, wins, losses, matches_played,
-        total_score, best_score, current_win_streak, best_win_streak
+        users.id, users.username, users.display_name, users.avatar, users.rating, users.wins, users.losses, users.matches_played,
+        users.total_score, users.best_score, users.current_win_streak, users.best_win_streak,
+        pp.level, pp.milestone_title
       FROM users
-      ORDER BY rating DESC, wins DESC, created_at ASC
+      LEFT JOIN player_progression pp ON pp.user_id = users.id
+      ORDER BY users.rating DESC, users.wins DESC, users.created_at ASC
       LIMIT $1 OFFSET $2
     `;
     const result = await pool.query<UserRow>(query, [safeLimit, offset]);
@@ -298,6 +311,8 @@ export class PostgresUserRepository implements IUserRepository {
         bestWinStreak: Number(row.best_win_streak || 0),
         totalScore: Number(row.total_score || 0),
         bestScore: Number(row.best_score || 0),
+        level: Number(row.level || 1),
+        milestoneTitle: row.milestone_title || 'Recruit',
       };
     });
 
@@ -354,13 +369,15 @@ export class PostgresUserRepository implements IUserRepository {
       SET role = $1,
           updated_at = NOW()
       WHERE id = $2
-      RETURNING ${this.baseSelect}
+      RETURNING id
     `;
-    const result = await pool.query<UserRow>(query, [role, userId]);
+    const result = await pool.query<{ id: string }>(query, [role, userId]);
     if (result.rows.length === 0) {
       throw new Error(`User ${userId} not found`);
     }
-    return result.rows[0];
+    const updatedUser = await this.findById(userId);
+    if (!updatedUser) throw new Error('User not found after role update');
+    return updatedUser;
   }
 }
 
