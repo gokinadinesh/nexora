@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEXORA — Official Hackathon Judge Presentation Deck</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #060a17;
+      --surface: #0c1427;
+      --cyan: #00f0ff;
+      --magenta: #ff0055;
+      --amber: #ffb800;
+      --green: #00ff88;
+      --text: #e6f1ff;
+      --muted: #8892b0;
+      --border: rgba(0, 240, 255, 0.2);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(0, 240, 255, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(255, 0, 85, 0.05) 0%, transparent 40%),
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+    }
+
+    /* Top HUD bar */
+    header {
+      height: 64px;
+      padding: 0 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      background: rgba(12, 20, 39, 0.85);
+      backdrop-filter: blur(10px);
+      z-index: 100;
+    }
+    .logo {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 1.5rem;
+      letter-spacing: 0.15em;
+      color: var(--cyan);
+      text-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: rgba(0, 240, 255, 0.1);
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      letter-spacing: 0.1em;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn {
+      background: rgba(0, 240, 255, 0.12);
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      padding: 6px 14px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.8rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+    .btn:hover {
+      background: var(--cyan);
+      color: #000;
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
+    }
+    .btn-notes {
+      border-color: var(--amber);
+      color: var(--amber);
+      background: rgba(255, 184, 0, 0.1);
+    }
+    .btn-notes:hover {
+      background: var(--amber);
+      color: #000;
+      box-shadow: 0 0 15px rgba(255, 184, 0, 0.6);
+    }
+
+    /* Slide Deck Container */
+    main {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 48px;
+    }
+    .slide {
+      position: absolute;
+      inset: 32px 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(0.96) translateY(20px);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      background: rgba(12, 20, 39, 0.65);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 48px 56px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: scale(1) translateY(0);
+      z-index: 10;
+    }
+
+    /* Slide Typography */
+    .slide-tag {
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--cyan);
+      font-size: 0.95rem;
+      letter-spacing: 0.2em;
+      margin-bottom: 8px;
+    }
+    .slide-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.6rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      margin-bottom: 24px;
+      line-height: 1.15;
+    }
+    .slide-title span { color: var(--cyan); }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      align-items: stretch;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 24px;
+      transition: border-color 0.2s ease;
+    }
+    .card:hover {
+      border-color: var(--cyan);
+    }
+    .card-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.15rem;
+      color: var(--cyan);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-body {
+      font-size: 1.05rem;
+      color: var(--text);
+      line-height: 1.6;
+    }
+    ul.bullet-list {
+      list-style: none;
+    }
+    ul.bullet-list li {
+      position: relative;
+      padding-left: 24px;
+      margin-bottom: 12px;
+      font-size: 1.05rem;
+      line-height: 1.5;
+    }
+    ul.bullet-list li::before {
+      content: '▶';
+      position: absolute;
+      left: 0;
+      color: var(--cyan);
+      font-size: 0.8rem;
+      top: 4px;
+    }
+
+    /* Speaker Notes Overlay */
+    #notes-panel {
+      position: fixed;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 960px;
+      background: rgba(5, 8, 17, 0.95);
+      border: 2px solid var(--amber);
+      border-radius: 8px;
+      padding: 18px 24px;
+      box-shadow: 0 0 30px rgba(255, 184, 0, 0.35);
+      z-index: 200;
+      display: none;
+      animation: slideUp 0.25s ease-out;
+    }
+    #notes-panel.open { display: block; }
+    .notes-title {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--amber);
+      letter-spacing: 0.15em;
+      margin-bottom: 6px;
+    }
+    .notes-content {
+      font-size: 1.05rem;
+      line-height: 1.55;
+      color: #fff;
+    }
+
+    /* Footer Progress Bar */
+    footer {
+      height: 52px;
+      padding: 0 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--border);
+      background: rgba(12, 20, 39, 0.85);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--muted);
+      z-index: 100;
+    }
+    .progress-bar-container {
+      width: 280px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 10%;
+      background: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan);
+      transition: width 0.3s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translate(-50%, 20px); opacity: 0; }
+      to { transform: translate(-50%, 0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <span>⚡ NEXORA</span>
+      <span class="badge">HACKATHON DECK</span>
+    </div>
+    <div class="controls">
+      <button class="btn btn-notes" onclick="toggleNotes()">🎙 SPEAKER SCRIPT [N]</button>
+      <a href="/" target="_blank" class="btn">🚀 OPEN LIVE DEMO</a>
+      <button class="btn" onclick="prevSlide()">◀ PREV</button>
+      <button class="btn" onclick="nextSlide()">NEXT ▶</button>
+    </div>
+  </header>
+
+  <main id="slide-container">
+
+    <!-- SLIDE 1: Title & Vision Hook -->
+    <div class="slide active" data-notes="Good morning judges. We are proud to present NEXORA: a high-intensity, server-authoritative cyber-strategy esports platform where competitive gaming meets real-world cybersecurity and distributed software engineering. We built NEXORA to prove browser gaming can deliver the adrenaline and visual spectacle of an AAA esports title without multi-gigabyte bloat.">
+      <div class="slide-tag">[SLIDE 01 // OVERVIEW]</div>
+      <h1 class="slide-title">NEXORA: <span>ENTER THE GRID.</span><br>OUTSMART THE NETWORK.</h1>
+      <p style="font-size: 1.35rem; color: var(--muted); margin-bottom: 32px; max-width: 800px;">
+        The Next-Generation Server-Authoritative Cyber-Strategy Esports Arena with Forward and Reverse Engineering Mechanics.
+      </p>
+      <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+        <span class="badge" style="font-size: 0.9rem; padding: 6px 14px;">100% SERVER AUTHORITATIVE</span>
+        <span class="badge" style="font-size: 0.9rem; padding: 6px 14px; border-color: var(--amber); color: var(--amber);">PROCEDURAL WEB AUDIO API</span>
+        <span class="badge" style="font-size: 0.9rem; padding: 6px 14px; border-color: var(--magenta); color: var(--magenta);">REVERSE ENGINEERING DECOMPILE</span>
+        <span class="badge" style="font-size: 0.9rem; padding: 6px 14px; border-color: var(--green); color: var(--green);">9/9 REGRESSION TESTS PASSING</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 2: The Problem Space -->
+    <div class="slide" data-notes="Modern web gaming suffers from three fatal flaws: 1) Client-trust architectures where players can tamper with scores and coordinates; 2) Massive asset bloat requiring huge MP3 files and physics libraries that lag mobile and web; and 3) Shallow depth—most browser games are simple clickers or tic-tac-toe derivatives.">
+      <div class="slide-tag">[SLIDE 02 // PROBLEM STATEMENT]</div>
+      <h2 class="slide-title">THE <span>TRILEMMA</span> OF WEB GAMING</h2>
+      <div class="grid-3">
+        <div class="card" style="border-left: 3px solid var(--magenta);">
+          <div class="card-title" style="color: var(--magenta);">⚠ CLIENT TAMPERING</div>
+          <div class="card-body">
+            90% of web games calculate positions and outcomes in the browser. In competitive esports, client-side score reporting makes cheating trivial and destroys competitive integrity.
+          </div>
+        </div>
+        <div class="card" style="border-left: 3px solid var(--amber);">
+          <div class="card-title" style="color: var(--amber);">📦 ASSET BLOAT & LAG</div>
+          <div class="card-body">
+            Traditional games require multi-megabyte sound libraries and heavy asset pipelines, introducing download friction, audio latency, and memory spikes on lower-end devices.
+          </div>
+        </div>
+        <div class="card" style="border-left: 3px solid var(--cyan);">
+          <div class="card-title" style="color: var(--cyan);">🎮 LACK OF DEPTH</div>
+          <div class="card-body">
+            Browser games rarely capture the strategic tension of real esports. There has been no platform bridging spatial tactical mechanics with real computer science concepts.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3: The Solution -->
+    <div class="slide" data-notes="NEXORA solves this with three pillars: 100% server authority where the server independently validates every single coordinate and point; dual engineering mechanics allowing players to forward-engineer or reverse-engineer systems; and zero-dependency procedural sensory synthesis in native browser APIs.">
+      <div class="slide-tag">[SLIDE 03 // ARCHITECTURAL INNOVATION]</div>
+      <h2 class="slide-title">THE <span>NEXORA</span> SOLUTION</h2>
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-title">🛡 SERVER AUTHORITY</div>
+          <div class="card-body">
+            Single source of truth. Every turn, action, and score validated with strict Manhattan adjacency, monotonic version counters, and idempotency protection.
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">⚡ DUAL ENGINEERING</div>
+          <div class="card-body">
+            Players don't just click buttons—they build forward network conduits (Net-Architect) or hack and decompile enemy firewalls in real-time minigames (Cryptanalyst).
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">🚀 ZERO-BLOAT SENSORY</div>
+          <div class="card-body">
+            100% procedural sound synthesis via Web Audio API, robotic voice announcer via Web Speech API, and locked 60 FPS hardware-accelerated 2D Canvas FX.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4: Forward vs Reverse Engineering -->
+    <div class="slide" data-notes="What makes NEXORA truly unique is our forward and reverse engineering loops. Forward engineering allows Net-Architects to lay down laser conduits between friendly nodes and overclock them for points. Reverse engineering allows Cryptanalysts to decompile enemy shields in a 10-second cryptographic frequency alignment minigame.">
+      <div class="slide-tag">[SLIDE 04 // GAMEPLAY MECHANICS]</div>
+      <h2 class="slide-title"><span>FORWARD</span> VS. <span>REVERSE</span> ENGINEERING</h2>
+      <div class="grid-2">
+        <div class="card" style="border-color: var(--cyan); box-shadow: 0 0 20px rgba(0, 240, 255, 0.1);">
+          <div class="card-title" style="color: var(--cyan); font-size: 1.4rem;">🛠 FORWARD ENGINEERING</div>
+          <div class="card-body">
+            <p style="margin-bottom: 12px; color: var(--muted);">Specialization: <strong>Net-Architect & Sentinel</strong></p>
+            <ul class="bullet-list">
+              <li><strong>Conduit Relay Mesh:</strong> Connect adjacent controlled nodes with laser conduits.</li>
+              <li><strong>Node Overclocking:</strong> Spend turns overclocking data nodes for passive score.</li>
+              <li><strong>Hexagonal Forcefields:</strong> Deploy mathematical shields to guard high-value nodes.</li>
+              <li><strong>Core Fortification:</strong> Anchor the central N22 Strategic Core (200 PTS).</li>
+            </ul>
+          </div>
+        </div>
+        <div class="card" style="border-color: var(--magenta); box-shadow: 0 0 20px rgba(255, 0, 85, 0.1);">
+          <div class="card-title" style="color: var(--magenta); font-size: 1.4rem;">🔓 REVERSE ENGINEERING</div>
+          <div class="card-body">
+            <p style="margin-bottom: 12px; color: var(--muted);">Specialization: <strong>Cryptanalyst & Ghost</strong></p>
+            <ul class="bullet-list">
+              <li><strong>Decompile Minigame:</strong> 10-second cryptographic frequency matching minigame.</li>
+              <li><strong>Memory Map Breach:</strong> Align 3 registers (0x1 to 0x8) to collapse enemy shields.</li>
+              <li><strong>Data Siphoning:</strong> Steal bandwidth points upon neutralizing fortified nodes.</li>
+              <li><strong>Vector Interception:</strong> Predict opponent moves and deploy tactical radar pings.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5: Sensory Engine -->
+    <div class="slide" data-notes="Here is our engineering craftsmanship. Traditional AAA games ship with 500 megabytes of audio assets. In NEXORA, our Web Audio synthesizer generates everything mathematically from pure oscillators. We added a robotic speech announcer and a 60 FPS HTML5 canvas overlay for laser conduits and shockwaves.">
+      <div class="slide-tag">[SLIDE 05 // MULTIMEDIA CRAFTSMANSHIP]</div>
+      <h2 class="slide-title"><span>PROCEDURAL</span> SENSORY ARCHITECTURE</h2>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">🔊 PROCEDURAL WEB AUDIO</div>
+          <div class="card-body">
+            <ul class="bullet-list">
+              <li><strong>Harmonic Chords:</strong> Multi-oscillator minor/major chords (+100/+200 PTS).</li>
+              <li><strong>Sub-Bass Impact:</strong> 40Hz square-wave shockwaves upon breach.</li>
+              <li><strong>Resonant Hum:</strong> 110Hz to 330Hz bandpass filter simulating forcefields.</li>
+              <li><strong>Zero MB Audio:</strong> 100% native math synthesis with zero asset latency.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">🎙 ROBOTIC ANNOUNCER & CANVAS FX</div>
+          <div class="card-body">
+            <ul class="bullet-list">
+              <li><strong>Web Speech API:</strong> Modulated robotic voice with military cadence.</li>
+              <li><strong>Tactical Callouts:</strong> 'Neural combat link established', 'Hostile firewall breached'.</li>
+              <li><strong>60 FPS Canvas FX:</strong> Pulsing circuit conduits, rotating shields, particle bursts.</li>
+              <li><strong>MOBA Radar Pings:</strong> Right-click contextual radar beacons with expanding rings.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 6: Live Demo Transition -->
+    <div class="slide" data-notes="Now let's switch to the live demo. We will show real-time matchmaking across two browser windows, legal Manhattan moves, energy shield deployment, the reverse engineering decompile minigame, and tactical pings.">
+      <div class="slide-tag">[SLIDE 06 // PRODUCT DEMONSTRATION]</div>
+      <h2 class="slide-title">LIVE COMBAT: <span>5×5 CYBERGRID</span></h2>
+      <div class="card" style="text-align: center; padding: 48px; border: 2px solid var(--cyan); box-shadow: 0 0 30px rgba(0, 240, 255, 0.2);">
+        <p style="font-size: 1.3rem; margin-bottom: 24px; color: var(--text);">
+          Dual-Operative Real-Time Engagement with Server-Authoritative Anti-Tampering
+        </p>
+        <div style="display: flex; justify-content: center; gap: 20px;">
+          <a href="/lobby" target="_blank" class="btn" style="font-size: 1.1rem; padding: 12px 32px;">
+            ⚡ LAUNCH MATCHMAKING LOBBY
+          </a>
+          <a href="/login" target="_blank" class="btn btn-notes" style="font-size: 1.1rem; padding: 12px 32px;">
+            🔑 OPEN 1-CLICK AUTH LOGIN
+          </a>
+        </div>
+        <div style="margin-top: 28px; font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; color: var(--muted);">
+          DEMO CHECKLIST: Quick-Fill Login → Radar Sweep → Legal Adjacency → Shield Deploy → Decompile Minigame → Radar Ping
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 7: Esports Replay Theater -->
+    <div class="slide" data-notes="True esports requires total reviewability. NEXORA features a complete Esports Replay Theater at /replay/:matchId. Every turn is reconstructed from PostgreSQL audit logs. Referees and players can scrub the timeline and adjust speed from 0.5x to 2x with audio playback.">
+      <div class="slide-tag">[SLIDE 07 // COMPETITIVE REVIEW]</div>
+      <h2 class="slide-title"><span>ESPORTS</span> REPLAY THEATER</h2>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">⏱ FRAME-BY-FRAME TIMELINE</div>
+          <div class="card-body">
+            <ul class="bullet-list">
+              <li><strong>Turn Scrubber:</strong> Scrub back and forth across every turn from start to victory.</li>
+              <li><strong>Speed Multipliers:</strong> Playback at 0.5x (slow-mo analysis), 1x, or 2x speed.</li>
+              <li><strong>Audio Sync:</strong> Real-time procedural audio synthesis during replay scrubber.</li>
+              <li><strong>Zero Simulation Drift:</strong> Replays built strictly from audited PostgreSQL events.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">🏆 COMPETITIVE ELO PROGRESSION</div>
+          <div class="card-body">
+            <ul class="bullet-list">
+              <li><strong>Authoritative ELO:</strong> Server calculates exact rating deltas (+16 / -16).</li>
+              <li><strong>Podium Leaderboard:</strong> Real-time global rankings with Gold/Silver/Bronze podiums.</li>
+              <li><strong>Full Engagement Audit:</strong> Detailed outcome logs and opponent dossiers.</li>
+              <li><strong>Anti-Tamper Idempotency:</strong> Repeat result calls never mutate rating twice.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 8: Enterprise Security & Telemetry -->
+    <div class="slide" data-notes="Under the hood, NEXORA is built like high-frequency financial software. We enforce 250ms rate limits, monotonic state versions, idempotency keys, and a rule-based anomaly detection engine that scores suspicious activity from 0 to 100.">
+      <div class="slide-tag">[SLIDE 08 // SECURITY & RELIABILITY]</div>
+      <h2 class="slide-title">ENTERPRISE <span>SECURITY</span> & TELEMETRY</h2>
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-title">🔒 INTEGRITY GUARDS</div>
+          <div class="card-body">
+            <ul class="bullet-list">
+              <li>250ms per-socket rate limits</li>
+              <li>UUID idempotency keys</li>
+              <li>Monotonic state versions</li>
+              <li>100KB strict body limit</li>
+            </ul>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">📊 ANOMALY ENGINE</div>
+          <div class="card-body">
+            <ul class="bullet-list">
+              <li>Deterministic 0–100 anomaly scoring</li>
+              <li>Out-of-turn escalation</li>
+              <li>Unauthorized access tracking</li>
+              <li>Sensitive data redaction</li>
+            </ul>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">📈 OPERATOR DASHBOARD</div>
+          <div class="card-body">
+            <ul class="bullet-list">
+              <li>Live WebSocket telemetry</li>
+              <li>Memory & uptime monitoring</li>
+              <li>Real-time security incident logs</li>
+              <li>RBAC: PLAYER vs OPERATOR</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 9: Production Architecture -->
+    <div class="slide" data-notes="NEXORA is production-ready today. The frontend is live on Google Firebase Hosting with global CDN routing. The backend is containerized with Docker and 1-click Render blueprints, and 100% verified by our 9 regression test suites.">
+      <div class="slide-tag">[SLIDE 09 // PRODUCTION READINESS]</div>
+      <h2 class="slide-title"><span>MULTI-CLOUD</span> ARCHITECTURE</h2>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">🌐 LIVE DEPLOYMENTS</div>
+          <div class="card-body">
+            <ul class="bullet-list">
+              <li><strong>Frontend:</strong> Live on <strong>Google Firebase Hosting</strong> (<a href="https://nexora-grid-9024.web.app" target="_blank" style="color: var(--cyan);">nexora-grid-9024.web.app</a>).</li>
+              <li><strong>Backend:</strong> Containerized Node.js API with `/api/health` and `/api/ready` probes.</li>
+              <li><strong>Database:</strong> PostgreSQL with connection pooling & automated SQL migrations.</li>
+              <li><strong>IaC Blueprints:</strong> 1-click deployment on Render / Railway via `render.yaml`.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">🛡 100% REGRESSION TEST VERIFICATION</div>
+          <div class="card-body">
+            <p style="font-size: 0.95rem; color: var(--muted); margin-bottom: 12px;">All 9 monorepo automated test suites passing with zero errors:</p>
+            <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; line-height: 1.8; color: var(--green);">
+              ✔ test-foundation.cjs (Health & Sockets)<br>
+              ✔ test-game-engine.cjs (Pure Adjacency & Rules)<br>
+              ✔ test-stage2.cjs to test-stage5.cjs (Auth & Combat)<br>
+              ✔ test-stage6.cjs to test-stage8.cjs (ELO, Security, Probes)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 10: Conclusion & Q&A -->
+    <div class="slide" data-notes="To conclude: NEXORA proves that with server-authoritative distributed systems and procedural browser capabilities, you can build a true AAA cyber-strategy esports platform. Fast, tamper-proof, audio-rich, and production-ready. Thank you judges, we are open for questions!">
+      <div class="slide-tag">[SLIDE 10 // CONCLUSION & DEFENSE]</div>
+      <h2 class="slide-title"><span>NEXORA</span>: THE FUTURE OF CYBER ESPORTS</h2>
+      <div class="grid-3" style="margin-bottom: 24px;">
+        <div class="card" style="text-align: center;">
+          <div style="font-size: 2.2rem; margin-bottom: 8px;">⚡</div>
+          <div class="card-title" style="justify-content: center;">INNOVATION</div>
+          <div class="card-body">Forward & Reverse Engineering mechanics in a fast-paced esports grid.</div>
+        </div>
+        <div class="card" style="text-align: center;">
+          <div style="font-size: 2.2rem; margin-bottom: 8px;">🚀</div>
+          <div class="card-title" style="justify-content: center;">PERFORMANCE</div>
+          <div class="card-body">Zero-bloat procedural audio, speech announcer, and locked 60 FPS canvas graphics.</div>
+        </div>
+        <div class="card" style="text-align: center;">
+          <div style="font-size: 2.2rem; margin-bottom: 8px;">🛡</div>
+          <div class="card-title" style="justify-content: center;">INTEGRITY</div>
+          <div class="card-body">100% server-authoritative engine with real-time anomaly auditing & replay theater.</div>
+        </div>
+      </div>
+      <div style="text-align: center;">
+        <h3 style="font-family: 'Orbitron', sans-serif; font-size: 1.8rem; color: var(--cyan); margin-bottom: 8px;">
+          THANK YOU, JUDGES!
+        </h3>
+        <p style="font-size: 1.1rem; color: var(--muted);">We are now open for technical and product questions.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Speaker Notes Overlay -->
+  <div id="notes-panel">
+    <div class="notes-title">🗣️ SPEAKER SCRIPT (WHAT TO SAY):</div>
+    <div id="notes-text" class="notes-content"></div>
+  </div>
+
+  <footer>
+    <div id="slide-indicator">SLIDE 01 / 10</div>
+    <div class="progress-bar-container">
+      <div id="progress-bar" class="progress-bar"></div>
+    </div>
+    <div>USE [ARROW KEYS] OR [SPACE] TO NAVIGATE • [F] FULLSCREEN</div>
+  </footer>
+
+  <script>
+    const slides = document.querySelectorAll('.slide');
+    const indicator = document.getElementById('slide-indicator');
+    const progressBar = document.getElementById('progress-bar');
+    const notesPanel = document.getElementById('notes-panel');
+    const notesText = document.getElementById('notes-text');
+    let currentSlide = 0;
+
+    function updateSlide(index) {
+      slides.forEach((s, i) => {
+        s.classList.toggle('active', i === index);
+      });
+      indicator.textContent = `SLIDE 0${index + 1} / 10`.replace('010', '10');
+      progressBar.style.width = `${((index + 1) / slides.length) * 100}%`;
+      
+      const currentNotes = slides[index].getAttribute('data-notes') || 'No notes for this slide.';
+      notesText.textContent = currentNotes;
+    }
+
+    function nextSlide() {
+      if (currentSlide < slides.length - 1) {
+        currentSlide++;
+        updateSlide(currentSlide);
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateSlide(currentSlide);
+      }
+    }
+
+    function toggleNotes() {
+      notesPanel.classList.toggle('open');
+    }
+
+    // Keyboard navigation
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key.toLowerCase() === 'n') {
+        toggleNotes();
+      } else if (e.key.toLowerCase() === 'f') {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    });
+
+    // Touch swipe support
+    let touchStartX = 0;
+    window.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    });
+    window.addEventListener('touchend', (e) => {
+      const diff = e.changedTouches[0].screenX - touchStartX;
+      if (diff > 50) prevSlide();
+      if (diff < -50) nextSlide();
+    });
+
+    updateSlide(0);
+  </script>
+</body>
+</html>
