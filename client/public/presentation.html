@@ -29,6 +29,7 @@
       height: 100vh;
       display: flex;
       flex-direction: column;
+      -webkit-user-select: none;
       user-select: none;
       background-image: 
         radial-gradient(circle at 10% 20%, rgba(0, 240, 255, 0.05) 0%, transparent 40%),
@@ -47,6 +48,7 @@
       align-items: center;
       border-bottom: 1px solid var(--border);
       background: rgba(12, 20, 39, 0.85);
+      -webkit-backdrop-filter: blur(10px);
       backdrop-filter: blur(10px);
       z-index: 100;
     }
@@ -70,6 +72,25 @@
       border: 1px solid var(--cyan);
       color: var(--cyan);
       letter-spacing: 0.1em;
+    }
+    .badge-lg {
+      font-size: 0.9rem;
+      padding: 6px 14px;
+    }
+    .badge-amber {
+      border-color: var(--amber);
+      color: var(--amber);
+      background: rgba(255, 184, 0, 0.1);
+    }
+    .badge-magenta {
+      border-color: var(--magenta);
+      color: var(--magenta);
+      background: rgba(255, 0, 85, 0.1);
+    }
+    .badge-green {
+      border-color: var(--green);
+      color: var(--green);
+      background: rgba(0, 255, 136, 0.1);
     }
     .controls {
       display: flex;
@@ -103,6 +124,10 @@
       color: #000;
       box-shadow: 0 0 15px rgba(255, 184, 0, 0.6);
     }
+    .btn-action-lg {
+      font-size: 1.1rem;
+      padding: 12px 32px;
+    }
 
     /* Slide Deck Container */
     main {
@@ -128,6 +153,7 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 48px 56px;
+      -webkit-backdrop-filter: blur(16px);
       backdrop-filter: blur(16px);
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
     }
@@ -155,6 +181,17 @@
       line-height: 1.15;
     }
     .slide-title span { color: var(--cyan); }
+    .slide-desc {
+      font-size: 1.35rem;
+      color: var(--muted);
+      margin-bottom: 32px;
+      max-width: 800px;
+    }
+    .badges-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -177,6 +214,23 @@
     .card:hover {
       border-color: var(--cyan);
     }
+    .card-border-magenta {
+      border-left: 3px solid var(--magenta);
+    }
+    .card-border-amber {
+      border-left: 3px solid var(--amber);
+    }
+    .card-border-cyan {
+      border-left: 3px solid var(--cyan);
+    }
+    .card-glow-cyan {
+      border-color: var(--cyan);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.1);
+    }
+    .card-glow-magenta {
+      border-color: var(--magenta);
+      box-shadow: 0 0 20px rgba(255, 0, 85, 0.1);
+    }
     .card-title {
       font-family: 'Orbitron', sans-serif;
       font-size: 1.15rem;
@@ -186,10 +240,83 @@
       align-items: center;
       gap: 10px;
     }
+    .card-title-lg {
+      font-size: 1.4rem;
+    }
+    .card-title-magenta {
+      color: var(--magenta);
+    }
+    .card-title-amber {
+      color: var(--amber);
+    }
+    .card-subtitle {
+      margin-bottom: 12px;
+      color: var(--muted);
+    }
     .card-body {
       font-size: 1.05rem;
       color: var(--text);
       line-height: 1.6;
+    }
+    .card-center {
+      text-align: center;
+    }
+    .card-demo-box {
+      text-align: center;
+      padding: 48px;
+      border: 2px solid var(--cyan);
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.2);
+    }
+    .demo-lead-text {
+      font-size: 1.3rem;
+      margin-bottom: 24px;
+      color: var(--text);
+    }
+    .demo-actions {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+    }
+    .demo-checklist-text {
+      margin-top: 28px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .live-link-cyan {
+      color: var(--cyan);
+      text-decoration: underline;
+    }
+    .test-summary-text {
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .test-results-box {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+      line-height: 1.8;
+      color: var(--green);
+    }
+    .conclusion-grid {
+      margin-bottom: 24px;
+    }
+    .icon-hero {
+      font-size: 2.2rem;
+      margin-bottom: 8px;
+    }
+    .card-title-center {
+      justify-content: center;
+    }
+    .thank-you-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.8rem;
+      color: var(--cyan);
+      margin-bottom: 8px;
+    }
+    .thank-you-sub {
+      font-size: 1.1rem;
+      color: var(--muted);
     }
     ul.bullet-list {
       list-style: none;
@@ -284,7 +411,7 @@
     </div>
     <div class="controls">
       <button class="btn btn-notes" onclick="toggleNotes()">🎙 SPEAKER SCRIPT [N]</button>
-      <a href="/" target="_blank" class="btn">🚀 OPEN LIVE DEMO</a>
+      <a href="/" target="_blank" rel="noopener noreferrer" class="btn">🚀 OPEN LIVE DEMO</a>
       <button class="btn" onclick="prevSlide()">◀ PREV</button>
       <button class="btn" onclick="nextSlide()">NEXT ▶</button>
     </div>
@@ -296,14 +423,14 @@
     <div class="slide active" data-notes="Good morning judges. We are proud to present NEXORA: a high-intensity, server-authoritative cyber-strategy esports platform where competitive gaming meets real-world cybersecurity and distributed software engineering. We built NEXORA to prove browser gaming can deliver the adrenaline and visual spectacle of an AAA esports title without multi-gigabyte bloat.">
       <div class="slide-tag">[SLIDE 01 // OVERVIEW]</div>
       <h1 class="slide-title">NEXORA: <span>ENTER THE GRID.</span><br>OUTSMART THE NETWORK.</h1>
-      <p style="font-size: 1.35rem; color: var(--muted); margin-bottom: 32px; max-width: 800px;">
+      <p class="slide-desc">
         The Next-Generation Server-Authoritative Cyber-Strategy Esports Arena with Forward and Reverse Engineering Mechanics.
       </p>
-      <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-        <span class="badge" style="font-size: 0.9rem; padding: 6px 14px;">100% SERVER AUTHORITATIVE</span>
-        <span class="badge" style="font-size: 0.9rem; padding: 6px 14px; border-color: var(--amber); color: var(--amber);">PROCEDURAL WEB AUDIO API</span>
-        <span class="badge" style="font-size: 0.9rem; padding: 6px 14px; border-color: var(--magenta); color: var(--magenta);">REVERSE ENGINEERING DECOMPILE</span>
-        <span class="badge" style="font-size: 0.9rem; padding: 6px 14px; border-color: var(--green); color: var(--green);">9/9 REGRESSION TESTS PASSING</span>
+      <div class="badges-row">
+        <span class="badge badge-lg">100% SERVER AUTHORITATIVE</span>
+        <span class="badge badge-lg badge-amber">PROCEDURAL WEB AUDIO API</span>
+        <span class="badge badge-lg badge-magenta">REVERSE ENGINEERING DECOMPILE</span>
+        <span class="badge badge-lg badge-green">9/9 REGRESSION TESTS PASSING</span>
       </div>
     </div>
 
@@ -312,20 +439,20 @@
       <div class="slide-tag">[SLIDE 02 // PROBLEM STATEMENT]</div>
       <h2 class="slide-title">THE <span>TRILEMMA</span> OF WEB GAMING</h2>
       <div class="grid-3">
-        <div class="card" style="border-left: 3px solid var(--magenta);">
-          <div class="card-title" style="color: var(--magenta);">⚠ CLIENT TAMPERING</div>
+        <div class="card card-border-magenta">
+          <div class="card-title card-title-magenta">⚠ CLIENT TAMPERING</div>
           <div class="card-body">
             90% of web games calculate positions and outcomes in the browser. In competitive esports, client-side score reporting makes cheating trivial and destroys competitive integrity.
           </div>
         </div>
-        <div class="card" style="border-left: 3px solid var(--amber);">
-          <div class="card-title" style="color: var(--amber);">📦 ASSET BLOAT & LAG</div>
+        <div class="card card-border-amber">
+          <div class="card-title card-title-amber">📦 ASSET BLOAT & LAG</div>
           <div class="card-body">
             Traditional games require multi-megabyte sound libraries and heavy asset pipelines, introducing download friction, audio latency, and memory spikes on lower-end devices.
           </div>
         </div>
-        <div class="card" style="border-left: 3px solid var(--cyan);">
-          <div class="card-title" style="color: var(--cyan);">🎮 LACK OF DEPTH</div>
+        <div class="card card-border-cyan">
+          <div class="card-title">🎮 LACK OF DEPTH</div>
           <div class="card-body">
             Browser games rarely capture the strategic tension of real esports. There has been no platform bridging spatial tactical mechanics with real computer science concepts.
           </div>
@@ -364,10 +491,10 @@
       <div class="slide-tag">[SLIDE 04 // GAMEPLAY MECHANICS]</div>
       <h2 class="slide-title"><span>FORWARD</span> VS. <span>REVERSE</span> ENGINEERING</h2>
       <div class="grid-2">
-        <div class="card" style="border-color: var(--cyan); box-shadow: 0 0 20px rgba(0, 240, 255, 0.1);">
-          <div class="card-title" style="color: var(--cyan); font-size: 1.4rem;">🛠 FORWARD ENGINEERING</div>
+        <div class="card card-glow-cyan">
+          <div class="card-title card-title-lg">🛠 FORWARD ENGINEERING</div>
           <div class="card-body">
-            <p style="margin-bottom: 12px; color: var(--muted);">Specialization: <strong>Net-Architect & Sentinel</strong></p>
+            <p class="card-subtitle">Specialization: <strong>Net-Architect & Sentinel</strong></p>
             <ul class="bullet-list">
               <li><strong>Conduit Relay Mesh:</strong> Connect adjacent controlled nodes with laser conduits.</li>
               <li><strong>Node Overclocking:</strong> Spend turns overclocking data nodes for passive score.</li>
@@ -376,10 +503,10 @@
             </ul>
           </div>
         </div>
-        <div class="card" style="border-color: var(--magenta); box-shadow: 0 0 20px rgba(255, 0, 85, 0.1);">
-          <div class="card-title" style="color: var(--magenta); font-size: 1.4rem;">🔓 REVERSE ENGINEERING</div>
+        <div class="card card-glow-magenta">
+          <div class="card-title card-title-lg card-title-magenta">🔓 REVERSE ENGINEERING</div>
           <div class="card-body">
-            <p style="margin-bottom: 12px; color: var(--muted);">Specialization: <strong>Cryptanalyst & Ghost</strong></p>
+            <p class="card-subtitle">Specialization: <strong>Cryptanalyst & Ghost</strong></p>
             <ul class="bullet-list">
               <li><strong>Decompile Minigame:</strong> 10-second cryptographic frequency matching minigame.</li>
               <li><strong>Memory Map Breach:</strong> Align 3 registers (0x1 to 0x8) to collapse enemy shields.</li>
@@ -425,19 +552,19 @@
     <div class="slide" data-notes="Now let's switch to the live demo. We will show real-time matchmaking across two browser windows, legal Manhattan moves, energy shield deployment, the reverse engineering decompile minigame, and tactical pings.">
       <div class="slide-tag">[SLIDE 06 // PRODUCT DEMONSTRATION]</div>
       <h2 class="slide-title">LIVE COMBAT: <span>5×5 CYBERGRID</span></h2>
-      <div class="card" style="text-align: center; padding: 48px; border: 2px solid var(--cyan); box-shadow: 0 0 30px rgba(0, 240, 255, 0.2);">
-        <p style="font-size: 1.3rem; margin-bottom: 24px; color: var(--text);">
+      <div class="card card-demo-box">
+        <p class="demo-lead-text">
           Dual-Operative Real-Time Engagement with Server-Authoritative Anti-Tampering
         </p>
-        <div style="display: flex; justify-content: center; gap: 20px;">
-          <a href="/lobby" target="_blank" class="btn" style="font-size: 1.1rem; padding: 12px 32px;">
+        <div class="demo-actions">
+          <a href="/lobby" target="_blank" rel="noopener noreferrer" class="btn btn-action-lg">
             ⚡ LAUNCH MATCHMAKING LOBBY
           </a>
-          <a href="/login" target="_blank" class="btn btn-notes" style="font-size: 1.1rem; padding: 12px 32px;">
+          <a href="/login" target="_blank" rel="noopener noreferrer" class="btn btn-notes btn-action-lg">
             🔑 OPEN 1-CLICK AUTH LOGIN
           </a>
         </div>
-        <div style="margin-top: 28px; font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; color: var(--muted);">
+        <div class="demo-checklist-text">
           DEMO CHECKLIST: Quick-Fill Login → Radar Sweep → Legal Adjacency → Shield Deploy → Decompile Minigame → Radar Ping
         </div>
       </div>
@@ -523,7 +650,7 @@
           <div class="card-title">🌐 LIVE DEPLOYMENTS</div>
           <div class="card-body">
             <ul class="bullet-list">
-              <li><strong>Frontend:</strong> Live on <strong>Google Firebase Hosting</strong> (<a href="https://nexora-grid-9024.web.app" target="_blank" style="color: var(--cyan);">nexora-grid-9024.web.app</a>).</li>
+              <li><strong>Frontend:</strong> Live on <strong>Google Firebase Hosting</strong> (<a href="https://nexora-grid-9024.web.app" target="_blank" rel="noopener noreferrer" class="live-link-cyan">nexora-grid-9024.web.app</a>).</li>
               <li><strong>Backend:</strong> Containerized Node.js API with `/api/health` and `/api/ready` probes.</li>
               <li><strong>Database:</strong> PostgreSQL with connection pooling & automated SQL migrations.</li>
               <li><strong>IaC Blueprints:</strong> 1-click deployment on Render / Railway via `render.yaml`.</li>
@@ -533,8 +660,8 @@
         <div class="card">
           <div class="card-title">🛡 100% REGRESSION TEST VERIFICATION</div>
           <div class="card-body">
-            <p style="font-size: 0.95rem; color: var(--muted); margin-bottom: 12px;">All 9 monorepo automated test suites passing with zero errors:</p>
-            <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; line-height: 1.8; color: var(--green);">
+            <p class="test-summary-text">All 9 monorepo automated test suites passing with zero errors:</p>
+            <div class="test-results-box">
               ✔ test-foundation.cjs (Health & Sockets)<br>
               ✔ test-game-engine.cjs (Pure Adjacency & Rules)<br>
               ✔ test-stage2.cjs to test-stage5.cjs (Auth & Combat)<br>
@@ -549,28 +676,28 @@
     <div class="slide" data-notes="To conclude: NEXORA proves that with server-authoritative distributed systems and procedural browser capabilities, you can build a true AAA cyber-strategy esports platform. Fast, tamper-proof, audio-rich, and production-ready. Thank you judges, we are open for questions!">
       <div class="slide-tag">[SLIDE 10 // CONCLUSION & DEFENSE]</div>
       <h2 class="slide-title"><span>NEXORA</span>: THE FUTURE OF CYBER ESPORTS</h2>
-      <div class="grid-3" style="margin-bottom: 24px;">
-        <div class="card" style="text-align: center;">
-          <div style="font-size: 2.2rem; margin-bottom: 8px;">⚡</div>
-          <div class="card-title" style="justify-content: center;">INNOVATION</div>
+      <div class="grid-3 conclusion-grid">
+        <div class="card card-center">
+          <div class="icon-hero">⚡</div>
+          <div class="card-title card-title-center">INNOVATION</div>
           <div class="card-body">Forward & Reverse Engineering mechanics in a fast-paced esports grid.</div>
         </div>
-        <div class="card" style="text-align: center;">
-          <div style="font-size: 2.2rem; margin-bottom: 8px;">🚀</div>
-          <div class="card-title" style="justify-content: center;">PERFORMANCE</div>
+        <div class="card card-center">
+          <div class="icon-hero">🚀</div>
+          <div class="card-title card-title-center">PERFORMANCE</div>
           <div class="card-body">Zero-bloat procedural audio, speech announcer, and locked 60 FPS canvas graphics.</div>
         </div>
-        <div class="card" style="text-align: center;">
-          <div style="font-size: 2.2rem; margin-bottom: 8px;">🛡</div>
-          <div class="card-title" style="justify-content: center;">INTEGRITY</div>
+        <div class="card card-center">
+          <div class="icon-hero">🛡</div>
+          <div class="card-title card-title-center">INTEGRITY</div>
           <div class="card-body">100% server-authoritative engine with real-time anomaly auditing & replay theater.</div>
         </div>
       </div>
-      <div style="text-align: center;">
-        <h3 style="font-family: 'Orbitron', sans-serif; font-size: 1.8rem; color: var(--cyan); margin-bottom: 8px;">
+      <div class="card-center">
+        <h3 class="thank-you-title">
           THANK YOU, JUDGES!
         </h3>
-        <p style="font-size: 1.1rem; color: var(--muted);">We are now open for technical and product questions.</p>
+        <p class="thank-you-sub">We are now open for technical and product questions.</p>
       </div>
     </div>
 
