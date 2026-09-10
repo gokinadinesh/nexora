@@ -162,6 +162,7 @@ button {
   border: 1px solid var(--accent-cyan);
   clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
   box-shadow: var(--glow-cyan);
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -199,6 +200,7 @@ button {
   border: 1px solid var(--border-neon);
   border-radius: 3px;
   transition: all var(--transition-normal);
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -455,6 +457,7 @@ button {
   position: fixed;
   inset: 0;
   background: var(--bg-overlay);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;

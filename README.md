@@ -43,24 +43,32 @@ nexora/
 ## Quick Start
 
 ### 1. Install Dependencies
+
 ```bash
 npm install
 ```
 
 ### 2. Environment Configuration
+
 Copy `.env.example` to `server/.env`:
+
 ```bash
 cp .env.example server/.env
 ```
 
 ### 3. Run Backend Server
+
 ```bash
 npm run dev:server
 ```
+
 Server runs at `http://localhost:4000` (Health check: `GET /api/health`).
 
 ### 4. Run Frontend Client
+
 ```bash
 npm run dev:client
 ```
+
 Client runs at `http://localhost:5173`.
+
