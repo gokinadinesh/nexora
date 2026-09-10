@@ -110,7 +110,7 @@ sequenceDiagram
 In the Stage 8 baseline, NEXORA operates as a single high-performance Node.js service running in conjunction with PostgreSQL. This architecture has intentional boundaries:
 
 | Subsystem | Current In-Memory State | Single-Instance Scaling Boundary |
-|---|---|---|
+| --- | --- | --- |
 | **Matchmaking** | `waitingQueue: QueueEntry[]` in RAM | Players connected to separate Node processes cannot be paired together. |
 | **Active Game Sessions** | `ActiveMatchSession` map in RAM | Player A and Player B in the same match must be connected to the exact same server instance. |
 | **Presence & Lobby** | `userSockets` and `socketUsers` maps | Presence broadcasts only reach sockets connected to the local instance. |
@@ -177,17 +177,21 @@ graph TB
 ```
 
 ### Phase 1: Distributed Socket Routing via Redis Adapter
+
 * **Mechanism**: Deploy `@socket.io/redis-adapter` or `@socket.io/redis-streams-adapter`.
 * **Impact**: Sockets on Node 1 can broadcast to rooms where members are connected to Node 2 or Node 3. Inter-socket communication is completely transparent.
 
 ### Phase 2: Centralized Matchmaking Queue
+
 * **Mechanism**: Move `waitingQueue` into Redis Sorted Sets (`ZSET`) keyed by rating, with atomic leasing via Redis Lua scripts or Redlock.
 * **Impact**: Matchmaking becomes distributed and cluster-wide. Any server can pop two matching players from the queue and assign them to an active match room.
 
 ### Phase 3: Dedicated Game Engine Worker Routing
+
 * **Mechanism**: Assign matches to dedicated engine processes using consistent hashing on `matchId` or dynamic match coordinator scheduling.
 * **Impact**: Decouples lightweight socket proxying from CPU-bound game engine action loops, enabling autoscaling based on active match count.
 
 ### Phase 4: Event Streaming & Asynchronous Telemetry
+
 * **Mechanism**: Stream operational events, security alerts, and match history to Apache Kafka or Redpanda.
 * **Impact**: Match finalization, ELO recalculation, and audit logging happen asynchronously without blocking the real-time event loop.
