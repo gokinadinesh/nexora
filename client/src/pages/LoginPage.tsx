@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { GoogleLogin } from '@react-oauth/google';
+
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -10,19 +10,10 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login, googleLogin } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleGoogleSuccess = async (credentialResponse: any) => {
-    try {
-      if (credentialResponse.credential) {
-        await googleLogin({ token: credentialResponse.credential });
-        navigate('/lobby');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Google Authentication failed');
-    }
-  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
