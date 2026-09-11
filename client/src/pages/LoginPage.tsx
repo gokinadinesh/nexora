@@ -156,26 +156,7 @@ export const LoginPage: React.FC = () => {
           </div>
         </form>
 
-        <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '0.72rem',
-            color: 'var(--text-muted)',
-            letterSpacing: '0.12em',
-            marginBottom: '16px',
-            textAlign: 'center',
-          }}>
-            OR AUTHENTICATE VIA SECURE IDENTITY PROVIDER
-          </div>
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={() => setError('Google Authentication was cancelled or failed')}
-            theme="filled_black"
-            shape="rectangular"
-            text="continue_with"
-            width="100%"
-          />
-        </div>
+        {/* Google Authentication disabled pending Client ID generation */}
 
         {/* Demo Quick-Fill Presets for Presentation */}
         <div style={{ marginTop: '28px', borderTop: '1px solid var(--border-subtle)', paddingTop: '20px' }}>
