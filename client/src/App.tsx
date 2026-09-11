@@ -12,6 +12,7 @@ import { MatchHistoryPage } from './pages/MatchHistoryPage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
 import { MonitoringPage } from './pages/MonitoringPage';
 import { ReplayPage } from './pages/ReplayPage';
+import { JournalPage } from './pages/JournalPage';
 
 export const App: React.FC = () => {
   return (
@@ -29,6 +30,7 @@ export const App: React.FC = () => {
             <Route path="/history" element={<MatchHistoryPage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/monitoring" element={<MonitoringPage />} />
+            <Route path="/journal" element={<JournalPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AppLayout>

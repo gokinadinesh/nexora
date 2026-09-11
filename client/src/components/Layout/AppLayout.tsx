@@ -25,6 +25,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const isLeaderboard = location.pathname === '/leaderboard';
   const isHistory = location.pathname === '/history';
   const isMonitoring = location.pathname === '/monitoring';
+  const isJournal = location.pathname === '/journal';
 
   // Check if player is currently in an active match session
   useEffect(() => {
@@ -229,6 +230,22 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                   }}
                 >
                   COMMAND
+                </Link>
+                <Link
+                  to="/journal"
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: '0.85rem',
+                    letterSpacing: '0.1em',
+                    color: isJournal ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                    textDecoration: 'none',
+                    fontWeight: 700,
+                    padding: '6px 12px',
+                    borderRadius: '2px',
+                    borderBottom: isJournal ? '2px solid var(--accent-cyan)' : '2px solid transparent',
+                  }}
+                >
+                  INTEL
                 </Link>
                 <Link
                   to="/leaderboard"
