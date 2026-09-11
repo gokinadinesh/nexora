@@ -1,5 +1,7 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { redisClient, redisSubClient, isRedisAvailable } from '../db/redis';
 import { config } from '../config/env';
 import { logger } from '../utils/logger';
 import { authService } from '../services/auth.service';
@@ -29,6 +31,13 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
     pingInterval: 25000,
     pingTimeout: 20000,
   });
+
+  if (isRedisAvailable()) {
+    io.adapter(createAdapter(redisClient, redisSubClient));
+    logger.info('Socket.IO Redis Adapter attached successfully.');
+  } else {
+    logger.warn('Socket.IO running in memory mode (Redis unavailable).');
+  }
 
   // Authentication Middleware Preparation
   io.use((socket, next) => {

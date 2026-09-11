@@ -5,7 +5,7 @@ import { logger } from '../utils/logger';
 
 export async function runMigrations(): Promise<void> {
   const pool = getDatabasePool();
-  const migrationsDir = path.resolve(__dirname, '../migrations');
+  const migrationsDir = path.resolve(__dirname, '../db/migrations');
 
   logger.info(`Running database migrations from ${migrationsDir}...`);
 
@@ -33,7 +33,7 @@ if (require.main === module) {
       process.exit(0);
     })
     .catch((err) => {
-      logger.error('Migration failed:', err.message);
+      logger.error('Migration failed:', err);
       process.exit(1);
     });
 }

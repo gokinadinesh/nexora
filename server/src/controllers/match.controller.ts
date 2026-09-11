@@ -63,6 +63,28 @@ export class MatchController {
       next(error);
     }
   }
+
+  async getMatchReplay(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const matchId = req.params.id;
+      const userId = (req as any).user?.id;
+
+      if (!userId) {
+        res.status(401).json({ status: 'error', message: 'Authentication required' });
+        return;
+      }
+
+      if (!matchId) {
+        res.status(400).json({ status: 'error', message: 'Match ID parameter is required' });
+        return;
+      }
+
+      const replay = await matchService.getMatchReplay(matchId, userId);
+      res.status(200).json(replay);
+    } catch (error: any) {
+      next(error);
+    }
+  }
 }
 
 export const matchController = new MatchController();

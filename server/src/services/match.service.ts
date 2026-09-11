@@ -21,56 +21,45 @@ export class MatchService {
   ) {}
 
   async createMatch(
-    player1: QueueEntry,
-    player2: QueueEntry
+    level: any,
+    players: QueueEntry[]
   ): Promise<{ match: MatchRow; session: ActiveMatchSession; matchFoundPayload: MatchFoundPayload }> {
-    logger.info(`MatchService: Creating match between ${player1.username} and ${player2.username}`);
+    logger.info(`MatchService: Creating match for players: ${players.map(p => p.username).join(', ')}`);
 
     // 1. Create persistent match in database
     const match = await this.matchRepo.createMatch(MATCH_STATUS.ACTIVE);
 
     // 2. Associate players in database
-    await this.matchRepo.addPlayerToMatch(match.id, player1.userId);
-    await this.matchRepo.addPlayerToMatch(match.id, player2.userId);
+    for (const p of players) {
+      await this.matchRepo.addPlayerToMatch(match.id, p.userId);
+    }
 
     // 3. Create active in-memory session
-    const session = await this.sessionService.createSession(match.id, [
-      { userId: player1.userId, socketId: player1.socketId },
-      { userId: player2.userId, socketId: player2.socketId },
-    ]);
+    const sessionArgs = players.map(p => ({ userId: p.userId, socketId: p.socketId }));
+    const session = await this.sessionService.createSession(match.id, sessionArgs);
 
     // 4. Initialize CyberGrid Game State in GameEngine
-    gameEngine.initGame(
-      match.id,
-      { id: player1.userId, displayName: player1.displayName, rating: player1.rating },
-      { id: player2.userId, displayName: player2.displayName, rating: player2.rating }
-    );
+    const enginePlayers = players.map(p => ({
+      id: p.userId,
+      displayName: p.displayName,
+      rating: p.rating
+    }));
+    gameEngine.initGame(match.id, level, enginePlayers);
 
     // 4. Construct safe player summaries
-    const players: MatchPlayerSummary[] = [
-      {
-        id: player1.userId,
-        username: player1.username,
-        displayName: player1.displayName,
-        avatar: player1.avatar,
-        rating: player1.rating,
-        status: 'ACTIVE',
-        score: 0,
-      },
-      {
-        id: player2.userId,
-        username: player2.username,
-        displayName: player2.displayName,
-        avatar: player2.avatar,
-        rating: player2.rating,
-        status: 'ACTIVE',
-        score: 0,
-      },
-    ];
+    const playerSummaries: MatchPlayerSummary[] = players.map(p => ({
+      id: p.userId,
+      username: p.username,
+      displayName: p.displayName,
+      avatar: p.avatar,
+      rating: p.rating,
+      status: 'ACTIVE',
+      score: 0,
+    }));
 
     const matchFoundPayload: MatchFoundPayload = {
       matchId: match.id,
-      players,
+      players: playerSummaries,
       status: MATCH_STATUS.ACTIVE,
       createdAt: Date.now(),
     };
@@ -144,6 +133,27 @@ export class MatchService {
     }
 
     return result;
+  }
+
+  async getMatchReplay(matchId: string, requestingUserId: string) {
+    const isMember = await this.isUserInMatch(matchId, requestingUserId);
+    if (!isMember) {
+      // In the future, operators could be allowed, but for now we restrict to participants
+      const error: any = new Error('Access denied: You are not authorized to view this match replay');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const { gameRepository } = require('../repositories/game.repository');
+    const replay = await gameRepository.getReplay(matchId);
+    
+    if (!replay) {
+      const error: any = new Error('Replay not found or match not yet completed');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    return replay;
   }
 }
 

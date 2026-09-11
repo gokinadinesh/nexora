@@ -14,6 +14,7 @@ import { authService } from '../services/auth.service';
 import { lobbyService } from '../services/lobby.service';
 import { matchmakingService } from '../services/matchmaking.service';
 import { getSocket } from '../services/socket';
+import { billingService } from '../services/billing.service';
 import { CyberBadge, tierFromRating } from '../components/UI/CyberBadge';
 
 export const LobbyPage: React.FC = () => {
@@ -44,6 +45,15 @@ export const LobbyPage: React.FC = () => {
       setError(err.message || 'Failed to refresh lobby data');
     }
   }, []);
+
+  const handleUpgradeClick = async () => {
+    try {
+      const url = await billingService.createCheckoutSession();
+      window.location.href = url;
+    } catch (err: any) {
+      setError('Failed to initiate upgrade process.');
+    }
+  };
 
   // Timer for queue duration
   useEffect(() => {
@@ -147,13 +157,13 @@ export const LobbyPage: React.FC = () => {
     }
   }, [isAuthenticated, isLoading, navigate, fetchLobby]);
 
-  const handleStartMatchmaking = async () => {
+  const handleStartMatchmaking = async (mode: '1v1' | '4P' | 'FFA') => {
     setMatchmakingError(null);
     try {
       const socket = getSocket();
       const sId = socketId || socket.id;
 
-      const response = await matchmakingService.joinQueue(sId);
+      const response = await matchmakingService.joinQueue(sId, mode);
       if (response.status === QUEUE_STATUS.MATCH_FOUND && response.match) {
         setIsSearching(false);
         setMatchFound(response.match);
@@ -316,7 +326,18 @@ export const LobbyPage: React.FC = () => {
               </div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                 SECURITY CLEARANCE: {user?.role === 'OPERATOR' ? 'OPERATOR (ROOT)' : 'OPERATIVE (LEVEL 1)'}
+                {user?.isPro ? <span style={{ color: 'var(--accent-amber)', marginLeft: '8px' }}>[PRO]</span> : null}
               </div>
+              {!user?.isPro && (
+                <button
+                  type="button"
+                  onClick={handleUpgradeClick}
+                  className="btn-cyber-primary"
+                  style={{ marginTop: '8px', padding: '4px 8px', fontSize: '0.7rem' }}
+                >
+                  UPGRADE TO PRO
+                </button>
+              )}
             </div>
           </div>
 
@@ -477,17 +498,47 @@ export const LobbyPage: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <button
                 type="button"
-                onClick={handleStartMatchmaking}
+                onClick={() => handleStartMatchmaking('1v1')}
                 className="btn-cyber-primary"
                 style={{
                   width: '100%',
-                  padding: '18px 24px',
-                  fontSize: '1.1rem',
+                  padding: '14px 20px',
+                  fontSize: '1rem',
                   letterSpacing: '0.15em',
                   boxShadow: '0 0 20px rgba(0, 240, 255, 0.35)',
                 }}
               >
-                ⚡ FIND MATCH
+                ⚡ DUEL ARENA (1v1)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStartMatchmaking('4P')}
+                className="btn-cyber-secondary"
+                style={{
+                  width: '100%',
+                  padding: '14px 20px',
+                  fontSize: '1rem',
+                  letterSpacing: '0.15em',
+                  border: '1px solid var(--accent-magenta)',
+                  color: 'var(--accent-magenta)',
+                }}
+              >
+                🔥 SKIRMISH (4P)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStartMatchmaking('FFA')}
+                className="btn-cyber-secondary"
+                style={{
+                  width: '100%',
+                  padding: '14px 20px',
+                  fontSize: '1rem',
+                  letterSpacing: '0.15em',
+                  border: '1px solid var(--accent-amber)',
+                  color: 'var(--accent-amber)',
+                }}
+              >
+                ☢️ WARZONE (10P FFA)
               </button>
               <div
                 style={{
@@ -557,93 +608,66 @@ export const LobbyPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Matchup Head-to-Head Comparison Card */}
+            {/* Matchup Comparison Card */}
             <div
               style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr auto 1fr',
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
                 alignItems: 'center',
-                gap: '16px',
+                gap: '24px',
                 background: 'var(--bg-surface-elevated)',
                 padding: '24px',
                 borderRadius: '6px',
                 border: '1px solid var(--border-subtle)',
               }}
             >
-              {/* Player 1 */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                <div
-                  style={{
-                    width: '56px',
-                    height: '56px',
-                    background: 'var(--bg-surface)',
-                    border: '2px solid var(--accent-cyan)',
-                    borderRadius: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '1.4rem',
-                    color: 'var(--accent-cyan)',
-                    fontWeight: 800,
-                  }}
-                >
-                  {(matchFound.players[0]?.displayName || 'OP').slice(0, 2).toUpperCase()}
-                </div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: 'var(--text-primary)', fontWeight: 700 }}>
-                  {matchFound.players[0]?.displayName}
-                </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--accent-cyan)' }}>
-                  RATING {matchFound.players[0]?.rating}
-                </div>
-                <CyberBadge type="rank" value={tierFromRating(matchFound.players[0]?.rating || 1000)} />
-              </div>
+              {matchFound.players.map((p, idx) => (
+                <React.Fragment key={p.id}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <div
+                      style={{
+                        width: '56px',
+                        height: '56px',
+                        background: 'var(--bg-surface)',
+                        border: `2px solid ${idx === 0 ? 'var(--accent-cyan)' : idx === 1 ? 'var(--accent-magenta)' : idx === 2 ? 'var(--accent-amber)' : 'var(--accent-green)'}`,
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontFamily: 'var(--font-display)',
+                        fontSize: '1.4rem',
+                        color: idx === 0 ? 'var(--accent-cyan)' : idx === 1 ? 'var(--accent-magenta)' : idx === 2 ? 'var(--accent-amber)' : 'var(--accent-green)',
+                        fontWeight: 800,
+                      }}
+                    >
+                      {(p.displayName || 'OP').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+                      {p.displayName}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: idx === 0 ? 'var(--accent-cyan)' : idx === 1 ? 'var(--accent-magenta)' : idx === 2 ? 'var(--accent-amber)' : 'var(--accent-green)' }}>
+                      RATING {p.rating}
+                    </div>
+                    <CyberBadge type="rank" value={tierFromRating(p.rating || 1000)} />
+                  </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '2rem',
-                    color: 'var(--accent-amber)',
-                    fontWeight: 900,
-                    textShadow: '0 0 10px rgba(255, 184, 0, 0.6)',
-                  }}
-                >
-                  VS
-                </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  5×5 GRID
-                </div>
-              </div>
-
-              {/* Player 2 */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                <div
-                  style={{
-                    width: '56px',
-                    height: '56px',
-                    background: 'var(--bg-surface)',
-                    border: '2px solid var(--accent-magenta)',
-                    borderRadius: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '1.4rem',
-                    color: 'var(--accent-magenta)',
-                    fontWeight: 800,
-                  }}
-                >
-                  {(matchFound.players[1]?.displayName || 'OP').slice(0, 2).toUpperCase()}
-                </div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: 'var(--text-primary)', fontWeight: 700 }}>
-                  {matchFound.players[1]?.displayName}
-                </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--accent-magenta)' }}>
-                  RATING {matchFound.players[1]?.rating}
-                </div>
-                <CyberBadge type="rank" value={tierFromRating(matchFound.players[1]?.rating || 1000)} />
-              </div>
+                  {idx < matchFound.players.length - 1 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 8px' }}>
+                      <div
+                        style={{
+                          fontFamily: 'var(--font-display)',
+                          fontSize: '1.5rem',
+                          color: 'var(--text-muted)',
+                          fontWeight: 900,
+                        }}
+                      >
+                        VS
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
+              ))}
             </div>
 
             {/* Countdown and Enter Button */}

@@ -74,7 +74,7 @@ export function executeAction(
       }
 
       // Attack succeeds: node captured from enemy
-      targetNode.owner = player.role;
+      targetNode.owner = player.id;
       player.score += 50;
 
       return {
@@ -109,7 +109,7 @@ export function executeAction(
 
 function executeCaptureInternal(state: FullGameState, player: any, targetNode: any): ActionResult {
   const points = targetNode.value; // 100 or 200
-  targetNode.owner = player.role;
+  targetNode.owner = player.id;
   player.position = targetNode.id;
   player.score += points;
 

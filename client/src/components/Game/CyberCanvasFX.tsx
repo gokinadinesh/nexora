@@ -14,7 +14,7 @@ interface Particle {
 
 interface CyberCanvasFXProps {
   grid: Record<string, GridNode>;
-  myPlayerRole?: 'PLAYER_1' | 'PLAYER_2';
+  myPlayerRole?: string;
   lastActionNodeId?: string | null;
   lastActionType?: string | null;
 }
@@ -23,6 +23,7 @@ export const CyberCanvasFX: React.FC<CyberCanvasFXProps> = ({
   grid,
   lastActionNodeId,
   lastActionType,
+  myPlayerRole,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const particlesRef = useRef<Particle[]>([]);
@@ -39,8 +40,13 @@ export const CyberCanvasFX: React.FC<CyberCanvasFXProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const cellWidth = canvas.width / 5;
-    const cellHeight = canvas.height / 5;
+    const maxRow = Math.max(...Object.keys(grid).map(k => parseInt(k[1], 10)).filter(n => !isNaN(n)));
+    const maxCol = Math.max(...Object.keys(grid).map(k => parseInt(k[2], 10)).filter(n => !isNaN(n)));
+    const cols = isFinite(maxCol) ? maxCol + 1 : 5;
+    const rows = isFinite(maxRow) ? maxRow + 1 : 5;
+
+    const cellWidth = canvas.width / cols;
+    const cellHeight = canvas.height / rows;
     const centerX = c * cellWidth + cellWidth / 2;
     const centerY = r * cellHeight + cellHeight / 2;
 
@@ -87,13 +93,18 @@ export const CyberCanvasFX: React.FC<CyberCanvasFXProps> = ({
       frameCount++;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const cellW = canvas.width / 5;
-      const cellH = canvas.height / 5;
+      const maxRow = Math.max(...Object.keys(grid).map(k => parseInt(k[1], 10)).filter(n => !isNaN(n)));
+      const maxCol = Math.max(...Object.keys(grid).map(k => parseInt(k[2], 10)).filter(n => !isNaN(n)));
+      const cols = isFinite(maxCol) ? maxCol + 1 : 5;
+      const rows = isFinite(maxRow) ? maxRow + 1 : 5;
+
+      const cellW = canvas.width / cols;
+      const cellH = canvas.height / rows;
 
       // 1. Draw Network Circuit Conduits between adjacent friendly nodes
       ctx.lineWidth = 2;
-      for (let r = 0; r < 5; r++) {
-        for (let c = 0; c < 5; c++) {
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
           const currentId = `N${r}${c}`;
           const currentNode = grid[currentId];
           if (!currentNode || currentNode.owner === 'NEUTRAL') continue;
@@ -102,17 +113,17 @@ export const CyberCanvasFX: React.FC<CyberCanvasFXProps> = ({
           const startY = r * cellH + cellH / 2;
 
           // Check Right neighbor
-          if (c < 4) {
+          if (c < cols - 1) {
             const rightNode = grid[`N${r}${c + 1}`];
             if (rightNode && rightNode.owner === currentNode.owner) {
               const endX = (c + 1) * cellW + cellW / 2;
-              const isP1 = currentNode.owner === 'PLAYER_1';
+              const isMe = currentNode.owner === myPlayerRole;
               const pulse = (Math.sin(frameCount * 0.05 + r + c) + 1) / 2;
 
-              ctx.strokeStyle = isP1
+              ctx.strokeStyle = isMe
                 ? `rgba(0, 240, 255, ${0.25 + pulse * 0.45})`
                 : `rgba(255, 0, 85, ${0.25 + pulse * 0.45})`;
-              ctx.shadowColor = isP1 ? '#00f0ff' : '#ff0055';
+              ctx.shadowColor = isMe ? '#00f0ff' : '#ff0055';
               ctx.shadowBlur = 8 * pulse;
 
               ctx.beginPath();
@@ -123,17 +134,17 @@ export const CyberCanvasFX: React.FC<CyberCanvasFXProps> = ({
           }
 
           // Check Down neighbor
-          if (r < 4) {
+          if (r < rows - 1) {
             const downNode = grid[`N${r + 1}${c}`];
             if (downNode && downNode.owner === currentNode.owner) {
               const endY = (r + 1) * cellH + cellH / 2;
-              const isP1 = currentNode.owner === 'PLAYER_1';
+              const isMe = currentNode.owner === myPlayerRole;
               const pulse = (Math.cos(frameCount * 0.05 + r + c) + 1) / 2;
 
-              ctx.strokeStyle = isP1
+              ctx.strokeStyle = isMe
                 ? `rgba(0, 240, 255, ${0.25 + pulse * 0.45})`
                 : `rgba(255, 0, 85, ${0.25 + pulse * 0.45})`;
-              ctx.shadowColor = isP1 ? '#00f0ff' : '#ff0055';
+              ctx.shadowColor = isMe ? '#00f0ff' : '#ff0055';
               ctx.shadowBlur = 8 * pulse;
 
               ctx.beginPath();

@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS users (
   display_name VARCHAR(50),
   avatar VARCHAR(255) DEFAULT 'default_operative',
   role VARCHAR(20) DEFAULT 'PLAYER' NOT NULL,
+  is_pro BOOLEAN DEFAULT false NOT NULL,
+  stripe_subscription_id VARCHAR(100),
   rating INT DEFAULT 1000 NOT NULL,
   wins INT DEFAULT 0 NOT NULL,
   losses INT DEFAULT 0 NOT NULL,

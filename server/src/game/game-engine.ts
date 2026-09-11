@@ -3,6 +3,7 @@ import {
   GameActionPayload,
   MATCH_STATUS,
   GameEventRecord,
+  LevelTemplate,
 } from '@nexora/shared';
 import { createInitialGameState } from './game-state';
 import { executeAction, ActionResult } from './game-actions';
@@ -38,19 +39,19 @@ export class GameEngine {
    */
   initGame(
     matchId: string,
-    player1: { id: string; displayName: string; rating: number },
-    player2: { id: string; displayName: string; rating: number }
+    level: LevelTemplate,
+    players: { id: string; displayName: string; rating: number }[]
   ): FullGameState {
     const existing = this.matches.get(matchId);
     if (existing) {
       return existing;
     }
 
-    const state = createInitialGameState(matchId, player1, player2);
+    const state = createInitialGameState(matchId, level, players);
     this.matches.set(matchId, state);
     this.processedActions.set(matchId, new Set<string>());
 
-    logger.info(`GameEngine: Initialized match ${matchId} (Turn: ${player1.displayName})`);
+    logger.info(`GameEngine: Initialized match ${matchId} (Turn: ${players[0].displayName})`);
 
     // Async persist initial state
     gameRepository.saveGameState(matchId, state.version, state).catch(() => {});
@@ -110,9 +111,10 @@ export class GameEngine {
     state.turnNumber++;
     state.updatedAt = now;
 
-    // Switch turn to other player
+    // Switch turn to other player sequentially
     const playerIds = Object.keys(state.players);
-    const nextPlayerId = playerIds.find((id) => id !== playerId) || playerId;
+    const currentPlayerIndex = playerIds.indexOf(playerId);
+    const nextPlayerId = playerIds[(currentPlayerIndex + 1) % playerIds.length];
     state.turnPlayerId = nextPlayerId;
 
     // Clear expired defense for the upcoming turn player
@@ -136,8 +138,13 @@ export class GameEngine {
       const remainingNeutral = Object.values(state.grid).some((n) => n.owner === 'NEUTRAL');
       if (!remainingNeutral) {
         isGameOver = true;
-        const [p1, p2] = Object.values(state.players);
-        winnerId = p1.score >= p2.score ? p1.id : p2.id;
+        let bestPlayer = Object.values(state.players)[0];
+        for (const p of Object.values(state.players)) {
+          if (p.score > bestPlayer.score) {
+            bestPlayer = p;
+          }
+        }
+        winnerId = bestPlayer.id;
       }
     }
 

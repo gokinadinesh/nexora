@@ -1,4 +1,4 @@
-import { MATCH_STATUS, MatchResultDetails } from '@nexora/shared';
+import { MATCH_STATUS, MatchResultDetails, FullGameState } from '@nexora/shared';
 import { matchRepository, FinalizePlayerParams } from '../repositories/match.repository';
 import { userRepository } from '../repositories/user.repository';
 import { gameRepository } from '../repositories/game.repository';
@@ -93,16 +93,53 @@ export class MatchFinalizationService {
         ratingChange: eloDiff.deltaB,
       });
     } else {
-      // Fallback for single player or N-players
-      for (const p of players) {
+      // N-Player Multiplayer Elo (Pairwise evaluation)
+      const n = players.length;
+      
+      // We sort players by their score descending to determine placements
+      const rankedPlayers = [...players].sort((a, b) => {
+        const scoreA = scores[a.user_id] ?? a.score ?? 0;
+        const scoreB = scores[b.user_id] ?? b.score ?? 0;
+        if (winnerId === a.user_id) return -1;
+        if (winnerId === b.user_id) return 1;
+        return scoreB - scoreA;
+      });
+
+      const playerRatings = new Map<string, number>();
+      for (const p of rankedPlayers) {
         const u = userMap.get(p.user_id);
-        const r = Number(u?.rating ?? 1000);
+        playerRatings.set(p.user_id, Number(u?.rating ?? 1000));
+      }
+
+      for (let i = 0; i < n; i++) {
+        const p1 = rankedPlayers[i];
+        const r1 = playerRatings.get(p1.user_id)!;
+        let totalDelta = 0;
+
+        for (let j = 0; j < n; j++) {
+          if (i === j) continue;
+          
+          const p2 = rankedPlayers[j];
+          const r2 = playerRatings.get(p2.user_id)!;
+
+          let outcome: 1 | 0.5 | 0 = 0.5;
+          if (i < j) outcome = 1; // p1 placed higher than p2
+          else if (i > j) outcome = 0; // p1 placed lower than p2
+
+          const eloDiff = ratingService.calculateEloChangeForPlayers(r1, r2, outcome);
+          totalDelta += eloDiff.deltaA;
+        }
+
+        // Average the pairwise deltas
+        const avgDelta = Math.round(totalDelta / (n - 1));
+        const finalRating = Math.max(100, r1 + avgDelta);
+
         finalizePlayers.push({
-          userId: p.user_id,
-          score: scores[p.user_id] ?? p.score ?? 0,
-          ratingBefore: r,
-          ratingAfter: r,
-          ratingChange: 0,
+          userId: p1.user_id,
+          score: scores[p1.user_id] ?? p1.score ?? 0,
+          ratingBefore: r1,
+          ratingAfter: finalRating,
+          ratingChange: avgDelta,
         });
       }
     }
@@ -157,7 +194,24 @@ export class MatchFinalizationService {
       })),
     });
 
-    // 7. Cleanup active match session in memory
+    // 7. Persist Server-Authoritative Replay
+    const gameStates = await gameRepository.getAllGameStates(matchId);
+    const matchEvents = await gameRepository.getMatchEvents(matchId, 1000);
+    
+    // Attempt to synthesize the timeline from matchEvents
+    // If gameStates are missing somehow, we just pass what we have
+    const initialState = (gameStates.find(s => s.state_version === 1)?.state_json || {}) as FullGameState;
+    const finalState = (gameStates.find(s => s.state_version === finalVersion)?.state_json || null) as FullGameState | null;
+    
+    await gameRepository.persistReplay(
+      matchId,
+      durationSeconds,
+      initialState,
+      matchEvents,
+      finalState
+    );
+
+    // 8. Cleanup active match session in memory
     matchSessionService.endSession(matchId);
 
     // 8. Retrieve complete MatchResultDetails

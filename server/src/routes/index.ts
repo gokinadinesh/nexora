@@ -18,7 +18,12 @@ apiRouter.use('/auth', authRouter);
 // Operations & Monitoring endpoints
 apiRouter.use('/monitoring', monitoringRouter);
 
+import billingRouter from './billing.routes';
+import developerRouter from './developer.routes';
+
 // Protected endpoints
+apiRouter.use('/billing', billingRouter);
+apiRouter.use('/developer', developerRouter);
 apiRouter.get('/me', requireAuth, (req, res, next) => authController.getMe(req, res, next));
 apiRouter.get('/profile', requireAuth, (req, res, next) => authController.getProfile(req, res, next));
 apiRouter.patch('/profile', requireAuth, (req, res, next) => authController.updateProfile(req, res, next));
@@ -36,6 +41,7 @@ apiRouter.get('/matchmaking/status', requireAuth, (req, res, next) => matchmakin
 // Match history & results (history must be registered before :id)
 apiRouter.get('/matches/history', requireAuth, (req, res, next) => matchController.getHistory(req, res, next));
 apiRouter.get('/matches/:id/result', requireAuth, (req, res, next) => matchController.getMatchResult(req, res, next));
+apiRouter.get('/matches/:id/replay', requireAuth, (req, res, next) => matchController.getMatchReplay(req, res, next));
 apiRouter.get('/matches/:id', requireAuth, (req, res, next) => matchController.getMatchById(req, res, next));
 
 export default apiRouter;

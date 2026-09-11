@@ -6,6 +6,7 @@ import {
   QueueEntry,
   MatchmakingJoinResponse,
   MatchFoundPayload,
+  LEVELS,
 } from '@nexora/shared';
 import { presenceService } from './presence.service';
 import { matchService } from './match.service';
@@ -14,12 +15,126 @@ import { userRepository } from '../repositories/user.repository';
 import { getSocketServer } from '../sockets';
 import { lobbyService } from './lobby.service';
 import { logger } from '../utils/logger';
-import { IMatchmakingStore, InMemoryMatchmakingStore } from '../stores/matchmaking.store';
+import { IMatchmakingStore, InMemoryMatchmakingStore, RedisMatchmakingStore } from '../stores/matchmaking.store';
+import { isRedisAvailable } from '../db/redis';
 
-export const matchmakingStore: IMatchmakingStore = new InMemoryMatchmakingStore();
+export const matchmakingStore: IMatchmakingStore = isRedisAvailable() ? new RedisMatchmakingStore() : new InMemoryMatchmakingStore();
 
 export class MatchmakingService {
-  constructor(private store: IMatchmakingStore = matchmakingStore) {}
+  private tickInterval: NodeJS.Timeout | null = null;
+
+  constructor(private store: IMatchmakingStore = matchmakingStore) {
+    this.startBackgroundTick();
+  }
+
+  private startBackgroundTick() {
+    if (this.tickInterval) return;
+    this.tickInterval = setInterval(() => {
+      this.processQueueTick().catch(err => {
+        logger.error('Matchmaking background tick error:', err);
+      });
+    }, 3000);
+  }
+
+  private async processQueueTick() {
+    // Attempt to match players who are sitting in the queue.
+    // We only need to trigger matching if there are enough players for a mode.
+    const queue = await this.store.getQueue();
+    if (queue.length < 2) return; // No matches possible
+
+    // Sort queue by oldest first
+    const sortedQueue = [...queue].sort((a, b) => a.queuedAt - b.queuedAt);
+
+    for (const candidate of sortedQueue) {
+      // Re-evaluate candidate as if they just joined, using atomicMatchOrEnqueue
+      // But we must NOT re-enqueue them if they fail (they are already in queue).
+      
+      const neededOpponents = candidate.mode === 'FFA' ? 9 : candidate.mode === '4P' ? 3 : 1;
+      
+      // We only try if there are enough people of the same mode
+      const sameModeCount = queue.filter(q => q.mode === candidate.mode).length;
+      if (sameModeCount < neededOpponents + 1) continue;
+
+      // Check if we can form a match
+      await this.tryMatchCandidate(candidate);
+    }
+  }
+
+  private async tryMatchCandidate(candidate: QueueEntry) {
+    // Wait for queue lock
+    while (!(await this.store.lockQueue())) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+
+    try {
+      const queue = await this.store.getQueue();
+      // Ensure candidate is still in queue
+      if (!queue.find(q => q.userId === candidate.userId)) return;
+
+      const neededOpponents = candidate.mode === 'FFA' ? 9 : candidate.mode === '4P' ? 3 : 1;
+      const opponentIndices = this.findOpponentsIndices(queue, candidate, neededOpponents);
+
+      if (opponentIndices.length === neededOpponents) {
+        // Matched!
+        const opponents = opponentIndices.map(idx => queue[idx]);
+        
+        // Remove everyone from queue
+        const matchUserIds = new Set([candidate.userId, ...opponents.map(o => o.userId)]);
+        const newQueue = queue.filter(q => !matchUserIds.has(q.userId));
+        await this.store.setQueue(newQueue); 
+        
+        const allPlayers = [candidate, ...opponents]; // Note: candidate might be placed first here. It's fine.
+        
+        logger.info(`Matchmaking (Background): Match found for players: ${allPlayers.map(p => p.username).join(', ')} [Mode: ${candidate.mode}]`);
+
+        const level = candidate.mode === 'FFA' ? LEVELS.LEVEL_FFA_LARGE : candidate.mode === '4P' ? LEVELS.LEVEL_4P_MEDIUM : LEVELS.LEVEL_1v1_SMALL;
+
+        // Create match in DB & active session
+        const { match, matchFoundPayload } = await matchService.createMatch(level, allPlayers);
+
+        // Record metrics and operational event
+        const { metricsService } = await import('../monitoring/metrics.service');
+        const { eventsService } = await import('../monitoring/events.service');
+        metricsService.recordMatchStarted();
+        eventsService.recordEvent({
+          type: 'MATCH_CREATED',
+          matchId: match.id,
+          metadata: {
+            players: allPlayers.map(p => p.username),
+          },
+        });
+
+        // Update player statuses to IN_GAME
+        for (const p of allPlayers) {
+          await presenceService.setStatus(p.userId, PLAYER_STATUS.IN_GAME);
+          lobbyService.broadcastPresence(p.userId, p.username, PLAYER_STATUS.IN_GAME);
+        }
+
+        // Socket.IO Room Allocation
+        try {
+          const io = getSocketServer();
+          const matchRoom = `match:${match.id}`;
+
+          for (const p of allPlayers) {
+            const socket = io.sockets.sockets.get(p.socketId);
+            if (socket) {
+              socket.join(matchRoom);
+              socket.emit(GAME_EVENTS.MATCH_FOUND, matchFoundPayload);
+            }
+          }
+
+          io.to(matchRoom).emit(GAME_EVENTS.QUEUE_STATUS, {
+            status: QUEUE_STATUS.MATCH_FOUND,
+            matchId: match.id,
+          });
+        } catch (socketErr) {
+          logger.warn('Matchmaking: Socket notification warning:', socketErr);
+        }
+      }
+    } finally {
+      await this.store.unlockQueue();
+    }
+  }
 
   /**
    * Evaluates if a player is eligible to join the matchmaking queue.
@@ -62,7 +177,7 @@ export class MatchmakingService {
   /**
    * Places an authenticated player into matchmaking and attempts matching immediately.
    */
-  async joinQueue(userId: string, socketId: string): Promise<MatchmakingJoinResponse> {
+  async joinQueue(userId: string, socketId: string, mode: import('@nexora/shared').GameMode = '1v1'): Promise<MatchmakingJoinResponse> {
     // Check eligibility
     const eligibility = await this.checkEligibility(userId);
     if (!eligibility.eligible) {
@@ -88,16 +203,17 @@ export class MatchmakingService {
       avatar: user.avatar || 'default_operative',
       rating: user.rating ?? 1000,
       queuedAt: Date.now(),
+      mode,
     };
 
-    logger.info(`Matchmaking: Operative ${newEntry.username} (Rating: ${newEntry.rating}) entering queue`);
+    logger.info(`Matchmaking: Operative ${newEntry.username} (Rating: ${newEntry.rating}) entering queue [Mode: ${mode}]`);
 
     const { eventsService } = await import('../monitoring/events.service');
     eventsService.recordEvent({
       type: 'QUEUE_JOINED',
       userId: newEntry.userId,
       username: newEntry.username,
-      metadata: { rating: newEntry.rating },
+      metadata: { rating: newEntry.rating, mode },
     });
 
     return await this.atomicMatchOrEnqueue(newEntry);
@@ -110,19 +226,25 @@ export class MatchmakingService {
     }
 
     try {
-      // Find suitable opponent in queue
       const queue = await this.store.getQueue();
-      const opponentIndex = this.findBestOpponentIndex(queue, newEntry);
+      
+      const neededOpponents = newEntry.mode === 'FFA' ? 9 : newEntry.mode === '4P' ? 3 : 1;
+      const opponentIndices = this.findOpponentsIndices(queue, newEntry, neededOpponents);
 
-      if (opponentIndex !== -1) {
-        // Matched!
-        const opponent = queue.splice(opponentIndex, 1)[0];
-        await this.store.setQueue(queue); // Update queue after removing opponent
+      if (opponentIndices.length === neededOpponents) {
+        // Matched! Extract opponents.
+        const opponents = opponentIndices.map(idx => queue[idx]);
+        const newQueue = queue.filter((_, idx) => !opponentIndices.includes(idx));
+        await this.store.setQueue(newQueue); 
         
-        logger.info(`Matchmaking: Match found between ${newEntry.username} and ${opponent.username}!`);
+        const allPlayers = [...opponents, newEntry];
+        
+        logger.info(`Matchmaking: Match found for players: ${allPlayers.map(p => p.username).join(', ')} [Mode: ${newEntry.mode}]`);
+
+        const level = newEntry.mode === 'FFA' ? LEVELS.LEVEL_FFA_LARGE : newEntry.mode === '4P' ? LEVELS.LEVEL_4P_MEDIUM : LEVELS.LEVEL_1v1_SMALL;
 
         // Create match in DB & active session
-        const { match, matchFoundPayload } = await matchService.createMatch(opponent, newEntry);
+        const { match, matchFoundPayload } = await matchService.createMatch(level, allPlayers);
 
         // Record metrics and operational event
         const { metricsService } = await import('../monitoring/metrics.service');
@@ -132,33 +254,30 @@ export class MatchmakingService {
           type: 'MATCH_CREATED',
           matchId: match.id,
           metadata: {
-            player1: opponent.username,
-            player2: newEntry.username,
+            players: allPlayers.map(p => p.username),
           },
         });
 
         // Update player statuses to IN_GAME
-        await presenceService.setStatus(opponent.userId, PLAYER_STATUS.IN_GAME);
-        await presenceService.setStatus(newEntry.userId, PLAYER_STATUS.IN_GAME);
-        lobbyService.broadcastPresence(opponent.userId, opponent.username, PLAYER_STATUS.IN_GAME);
-        lobbyService.broadcastPresence(newEntry.userId, newEntry.username, PLAYER_STATUS.IN_GAME);
+        for (const p of allPlayers) {
+          await presenceService.setStatus(p.userId, PLAYER_STATUS.IN_GAME);
+          lobbyService.broadcastPresence(p.userId, p.username, PLAYER_STATUS.IN_GAME);
+        }
 
         // Socket.IO Room Allocation
         try {
           const io = getSocketServer();
           const matchRoom = `match:${match.id}`;
 
-          const socketOpponent = io.sockets.sockets.get(opponent.socketId);
-          const socketNewPlayer = io.sockets.sockets.get(newEntry.socketId);
-
-          if (socketOpponent) {
-            socketOpponent.join(matchRoom);
-            socketOpponent.emit(GAME_EVENTS.MATCH_FOUND, matchFoundPayload);
-          }
-
-          if (socketNewPlayer) {
-            socketNewPlayer.join(matchRoom);
-            socketNewPlayer.emit(GAME_EVENTS.MATCH_FOUND, matchFoundPayload);
+          for (const p of allPlayers) {
+            const socket = io.sockets.sockets.get(p.socketId);
+            if (socket) {
+              socket.join(matchRoom);
+              socket.emit(GAME_EVENTS.MATCH_FOUND, matchFoundPayload);
+              logger.info(`Matchmaking: socket for ${p.username} (${p.socketId}) successfully notified.`);
+            } else {
+              logger.warn(`Matchmaking: socket NOT FOUND for ${p.username} (${p.socketId})!`);
+            }
           }
 
           io.to(matchRoom).emit(GAME_EVENTS.QUEUE_STATUS, {
@@ -208,16 +327,16 @@ export class MatchmakingService {
     }
   }
 
-  /**
-   * Rating-aware FIFO matching strategy.
-   * Checks queue from oldest to newest with rating tolerance.
-   */
-  private findBestOpponentIndex(queue: QueueEntry[], candidate: QueueEntry): number {
+  private findOpponentsIndices(queue: QueueEntry[], candidate: QueueEntry, needed: number): number[] {
     const now = Date.now();
+    const indices: number[] = [];
 
     for (let i = 0; i < queue.length; i++) {
+      if (indices.length === needed) break;
+
       const waiting = queue[i];
       if (waiting.userId === candidate.userId) continue;
+      if (waiting.mode !== candidate.mode) continue;
 
       const waitDuration = now - waiting.queuedAt;
       const ratingDiff = Math.abs(waiting.rating - candidate.rating);
@@ -227,11 +346,14 @@ export class MatchmakingService {
       if (waitDuration > 10000) allowedDiff = 10000;
 
       if (ratingDiff <= allowedDiff) {
-        return i;
+        indices.push(i);
       }
     }
 
-    return -1;
+    if (indices.length === needed) {
+      return indices;
+    }
+    return [];
   }
 
   /**

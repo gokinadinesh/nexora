@@ -55,82 +55,85 @@ export const ReplayPage: React.FC = () => {
     if (!matchId) return;
 
     setLoading(true);
-    matchService
-      .getResult(matchId)
-      .then((res: MatchResultDetails) => {
+    Promise.all([
+      matchService.getResult(matchId),
+      matchService.getReplay(matchId)
+    ])
+      .then(([res, replay]) => {
         setMatchResult(res);
 
-        // Synthesize simulated replay timeline from match data
-        const initialGrid = createBaseGrid();
+        // We use the actual recorded initial state from the server
+        const initialGrid = replay.initialState?.grid || createBaseGrid();
+        
         const replayTimeline: ReplayStep[] = [
           {
             turnNumber: 0,
             message: 'MATCH INITIALIZED // Sockets Synced to 5×5 CyberGrid',
             grid: JSON.parse(JSON.stringify(initialGrid)),
-            p1Score: 0,
-            p2Score: 0,
-            p1Pos: 'N00',
+            p1Score: replay.initialState?.players?.[res.players[0]?.userId]?.score || 0,
+            p2Score: replay.initialState?.players?.[res.players[1]?.userId]?.score || 0,
+            p1Pos: 'N00', // We could extract from players if tracked
             p2Pos: 'N44',
           },
         ];
 
-        // Reconstruct steps based on score and version
-        const totalVersions = Math.max(res.finalVersion || 6, 6);
-        let currP1Score = 0;
-        let currP2Score = 0;
+        let currP1Score = replayTimeline[0].p1Score;
+        let currP2Score = replayTimeline[0].p2Score;
         let currGrid = JSON.parse(JSON.stringify(initialGrid));
         let currP1Pos = 'N00';
         let currP2Pos = 'N44';
-
-        for (let v = 1; v <= totalVersions; v++) {
-          const isP1Turn = v % 2 !== 0;
-          let actionMsg = '';
-
-          if (isP1Turn) {
-            if (v === 1) {
-              currP1Pos = 'N01';
-              currGrid['N01'].owner = 'PLAYER_1';
-              currP1Score += 100;
-              actionMsg = `${res.players[0]?.displayName || 'Player 1'} moved to N01 and captured neutral sector (+100 PTS)`;
-            } else if (v === 3) {
-              currP1Pos = 'N02';
-              currGrid['N02'].owner = 'PLAYER_1';
-              currP1Score += 200;
-              actionMsg = `${res.players[0]?.displayName || 'Player 1'} captured STRATEGIC CORE N02 (+200 PTS)`;
-            } else if (v === 5) {
-              currGrid['N02'].isDefended = true;
-              actionMsg = `${res.players[0]?.displayName || 'Player 1'} engaged Firewall Shield on Node N02`;
-            } else {
-              currP1Score = res.players[0]?.score || currP1Score;
-              actionMsg = `${res.players[0]?.displayName || 'Player 1'} executed strategic maneuver`;
-            }
-          } else {
-            if (v === 2) {
-              currP2Pos = 'N43';
-              currGrid['N43'].owner = 'PLAYER_2';
-              currP2Score += 100;
-              actionMsg = `${res.players[1]?.displayName || 'Player 2'} captured neutral sector N43 (+100 PTS)`;
-            } else if (v === 4) {
-              currP2Pos = 'N34';
-              currGrid['N34'].owner = 'PLAYER_2';
-              currP2Score += 100;
-              actionMsg = `${res.players[1]?.displayName || 'Player 2'} captured sector N34 (+100 PTS)`;
-            } else {
-              currP2Score = res.players[1]?.score || currP2Score;
-              actionMsg = `${res.players[1]?.displayName || 'Player 2'} executed defensive maneuver`;
-            }
+        
+        let turn = 1;
+        
+        // Process actual events from server
+        const events = replay.eventTimeline || [];
+        for (const event of events) {
+          // Ignore MATCH_COMPLETED or non-action events
+          if (event.event_type === 'MATCH_COMPLETED') continue;
+          
+          const isP1Turn = event.player_id === res.players[0]?.userId;
+          const data = event.event_data || {};
+          let actionMsg = data.message || `${event.event_type} at ${data.targetNodeId || 'Unknown'}`;
+          
+          // Apply state changes based on the event
+          if (data.targetNodeId && currGrid[data.targetNodeId]) {
+             if (event.event_type === 'DEFEND_NODE') {
+                currGrid[data.targetNodeId].isDefended = true;
+             } else {
+                currGrid[data.targetNodeId].owner = isP1Turn ? 'PLAYER_1' : 'PLAYER_2';
+                if (isP1Turn) currP1Pos = data.targetNodeId;
+                else currP2Pos = data.targetNodeId;
+             }
+          }
+          
+          if (data.scoreDelta) {
+             if (isP1Turn) currP1Score += data.scoreDelta;
+             else currP2Score += data.scoreDelta;
           }
 
           replayTimeline.push({
-            turnNumber: v,
+            turnNumber: turn++,
             message: actionMsg,
             grid: JSON.parse(JSON.stringify(currGrid)),
-            p1Score: v === totalVersions ? res.players[0]?.score : currP1Score,
-            p2Score: v === totalVersions ? res.players[1]?.score : currP2Score,
+            p1Score: currP1Score,
+            p2Score: currP2Score,
             p1Pos: currP1Pos,
             p2Pos: currP2Pos,
-            activePlayerId: isP1Turn ? res.players[0]?.userId : res.players[1]?.userId,
+            activePlayerId: event.player_id,
           });
+        }
+
+        // Add Final Step if needed to match final scores exactly
+        if (replay.finalState && events.length > 0) {
+           replayTimeline.push({
+             turnNumber: turn,
+             message: 'MATCH TERMINATED // Final State Reached',
+             grid: replay.finalState.grid,
+             p1Score: replay.finalState.players?.[res.players[0]?.userId]?.score || currP1Score,
+             p2Score: replay.finalState.players?.[res.players[1]?.userId]?.score || currP2Score,
+             p1Pos: currP1Pos,
+             p2Pos: currP2Pos,
+           });
         }
 
         setSteps(replayTimeline);

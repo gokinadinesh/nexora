@@ -59,8 +59,8 @@ export function validateMove(state: FullGameState, playerId: string, targetNodeI
   }
 
   // Check if opponent operative occupies the target node
-  const opponent = Object.values(state.players).find((p) => p.id !== playerId);
-  if (opponent && opponent.position === targetNodeId) {
+  const opponent = Object.values(state.players).find((p) => p.id !== playerId && p.position === targetNodeId);
+  if (opponent) {
     throw new GameRuleError('INVALID_MOVE', 'Cannot move directly onto an occupied enemy operative node. Use ATTACK instead.');
   }
 
@@ -102,7 +102,7 @@ export function validateAttack(state: FullGameState, playerId: string, targetNod
     throw new GameRuleError('INVALID_TARGET', 'Cannot attack a neutral node. Use CAPTURE instead.');
   }
 
-  if (targetNode.owner === player.role) {
+  if (targetNode.owner === player.id) {
     throw new GameRuleError('INVALID_TARGET', 'Cannot attack your own node');
   }
 
@@ -123,7 +123,7 @@ export function validateDefend(state: FullGameState, playerId: string): GridNode
     throw new GameRuleError('INVALID_TARGET', 'Current position is invalid');
   }
 
-  if (currentNode.owner !== player.role) {
+  if (currentNode.owner !== player.id) {
     throw new GameRuleError('INVALID_TARGET', 'You can only defend nodes currently owned by your operative');
   }
 

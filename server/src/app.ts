@@ -7,6 +7,8 @@ import { requestLogger } from './middleware/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { securityHeaders, createRateLimiter } from './middleware/security.middleware';
 import apiRouter from './routes';
+import billingRouter from './routes/billing.routes';
+import { billingController } from './controllers/billing.controller';
 
 export function createApp(): Express {
   const app = express();
@@ -28,6 +30,9 @@ export function createApp(): Express {
       credentials: true,
     })
   );
+
+  // 2.5 Stripe Webhook (MUST be before express.json)
+  app.post('/api/v1/billing/webhook', express.raw({ type: 'application/json' }), (req, res) => billingController.handleWebhook(req, res));
 
   // 3. Body limit protection (default 100kb)
   app.use(express.json({ limit: config.bodyLimit }));

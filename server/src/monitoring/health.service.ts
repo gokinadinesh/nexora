@@ -42,9 +42,9 @@ export class HealthService {
     }
   }
 
-  checkMatchmaking(): 'healthy' | 'degraded' {
+  async checkMatchmaking(): Promise<'healthy' | 'degraded'> {
     try {
-      const size = matchmakingService.getQueueSize();
+      const size = await matchmakingService.getQueueSize();
       return typeof size === 'number' ? 'healthy' : 'degraded';
     } catch {
       return 'degraded';
@@ -54,7 +54,7 @@ export class HealthService {
   async getHealthStatus(): Promise<HealthCheckResult> {
     const dbStatus = await this.checkDatabase();
     const wsStatus = this.checkWebsocket();
-    const mmStatus = this.checkMatchmaking();
+    const mmStatus = await this.checkMatchmaking();
 
     const services: SystemHealthStatus = {
       server: 'healthy',

@@ -1,8 +1,9 @@
 import { MatchStatus, MATCH_STATUS } from '@nexora/shared';
 import { logger } from '../utils/logger';
-import { IMatchSessionStore, InMemoryMatchSessionStore, ActiveMatchSession } from '../stores/match-session.store';
+import { IMatchSessionStore, InMemoryMatchSessionStore, RedisMatchSessionStore, ActiveMatchSession } from '../stores/match-session.store';
+import { isRedisAvailable } from '../db/redis';
 
-export const matchSessionStore: IMatchSessionStore = new InMemoryMatchSessionStore();
+export const matchSessionStore: IMatchSessionStore = isRedisAvailable() ? new RedisMatchSessionStore() : new InMemoryMatchSessionStore();
 
 export class MatchSessionService {
   constructor(private store: IMatchSessionStore = matchSessionStore) {}

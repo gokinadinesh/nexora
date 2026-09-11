@@ -183,10 +183,9 @@ export const MatchPage: React.FC = () => {
     );
   }
 
-  const p1 = Object.values(gameState.players)[0];
-  const p2 = Object.values(gameState.players)[1];
+  const playersList = Object.values(gameState.players);
   const myPlayer = user ? gameState.players[user.id] : undefined;
-  const opponentPlayer = Object.values(gameState.players).find((p) => p.id !== user?.id);
+  const opponentPlayers = playersList.filter((p) => p.id !== user?.id);
 
   const myPosition = myPlayer?.position || 'N00';
   const selectedNode = selectedNodeId ? gameState.grid[selectedNodeId] : null;
@@ -204,14 +203,10 @@ export const MatchPage: React.FC = () => {
   const isSelectedAdjacent = selectedNodeId ? isAdjacent(selectedNodeId) : false;
 
   // Action eligibility checks
-  const canMove = isMyTurn && isSelectedAdjacent && selectedNode?.owner !== (opponentPlayer?.role || '');
+  const canMove = isMyTurn && isSelectedAdjacent && !opponentPlayers.some(p => p.role === selectedNode?.owner);
   const canCapture = isMyTurn && isSelectedAdjacent && selectedNode?.owner === 'NEUTRAL';
-  const canAttack = isMyTurn && isSelectedAdjacent && selectedNode?.owner === opponentPlayer?.role;
+  const canAttack = isMyTurn && isSelectedAdjacent && opponentPlayers.some(p => p.role === selectedNode?.owner);
   const canDefend = isMyTurn && gameState.grid[myPosition]?.owner === myPlayer?.role && !gameState.grid[myPosition]?.isDefended;
-
-  // Progress to 500 target
-  const p1Progress = Math.min(100, Math.round(((p1?.score || 0) / 500) * 100));
-  const p2Progress = Math.min(100, Math.round(((p2?.score || 0) / 500) * 100));
 
   // Node selection & right-click ping handling
   const handleNodeClick = (nodeId: string) => {
@@ -227,7 +222,7 @@ export const MatchPage: React.FC = () => {
   const handleNodeContextMenu = (e: React.MouseEvent, nodeId: string) => {
     e.preventDefault();
     const node = gameState.grid[nodeId];
-    if (node?.owner === opponentPlayer?.role) {
+    if (opponentPlayers.some(p => p.role === node?.owner)) {
       spawnPing(nodeId, 'attack');
     } else if (node?.owner === myPlayer?.role) {
       spawnPing(nodeId, 'defend');
@@ -246,10 +241,17 @@ export const MatchPage: React.FC = () => {
     }
   };
 
-  // Render 5x5 Grid Rows with Canvas & Ping Overlays
   const renderGrid = () => {
-    const rows = [0, 1, 2, 3, 4];
-    const cols = [0, 1, 2, 3, 4];
+    let maxRow = 0;
+    let maxCol = 0;
+    Object.keys(gameState.grid).forEach((nodeId) => {
+      const r = parseInt(nodeId[1], 10);
+      const c = parseInt(nodeId[2], 10);
+      if (!isNaN(r) && r > maxRow) maxRow = r;
+      if (!isNaN(c) && c > maxCol) maxCol = c;
+    });
+    const rows = Array.from({length: maxRow + 1}, (_, i) => i);
+    const cols = Array.from({length: maxCol + 1}, (_, i) => i);
 
     return (
       <div
@@ -277,39 +279,34 @@ export const MatchPage: React.FC = () => {
             position: 'relative',
             zIndex: 10,
             display: 'grid',
-            gridTemplateRows: 'repeat(5, 1fr)',
+            gridTemplateRows: `repeat(${rows.length}, 1fr)`,
             gap: '12px',
             width: '100%',
             height: '100%',
           }}
         >
           {rows.map((row) => (
-            <div key={row} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
+            <div key={row} style={{ display: 'grid', gridTemplateColumns: `repeat(${cols.length}, 1fr)`, gap: '12px' }}>
               {cols.map((col) => {
                 const nodeId = `N${row}${col}`;
                 const node: GridNode = gameState.grid[nodeId];
                 const isSelected = selectedNodeId === nodeId;
-                const isP1Owner = node.owner === 'PLAYER_1';
-                const isP2Owner = node.owner === 'PLAYER_2';
                 const isNeutral = node.owner === 'NEUTRAL';
                 const isSpecial = node.type === 'SPECIAL';
 
-                const hasP1Token = p1?.position === nodeId;
-                const hasP2Token = p2?.position === nodeId;
+                const occupyingPlayer = playersList.find(p => p.position === nodeId);
                 const adjacentToMe = isAdjacent(nodeId);
 
                 let borderColor = 'var(--border-subtle)';
                 let bgColor = 'rgba(10, 14, 26, 0.75)';
                 let glow = 'none';
 
-                if (isP1Owner) {
-                  borderColor = 'var(--accent-cyan)';
-                  bgColor = 'rgba(0, 240, 255, 0.12)';
-                  glow = '0 0 14px rgba(0, 240, 255, 0.25)';
-                } else if (isP2Owner) {
-                  borderColor = 'var(--accent-magenta)';
-                  bgColor = 'rgba(255, 0, 85, 0.12)';
-                  glow = '0 0 14px rgba(255, 0, 85, 0.25)';
+                if (!isNeutral) {
+                  // For dynamic players, we use cyan for current player, magenta/orange/red for opponents
+                  const isMe = node.owner === myPlayer?.role;
+                  borderColor = isMe ? 'var(--accent-cyan)' : 'var(--accent-magenta)';
+                  bgColor = isMe ? 'rgba(0, 240, 255, 0.12)' : 'rgba(255, 0, 85, 0.12)';
+                  glow = isMe ? '0 0 14px rgba(0, 240, 255, 0.25)' : '0 0 14px rgba(255, 0, 85, 0.25)';
                 }
 
                 if (isSpecial) {
@@ -383,41 +380,24 @@ export const MatchPage: React.FC = () => {
 
                     {/* Operative Tokens or Node Center Symbol */}
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
-                      {hasP1Token && (
+                      {occupyingPlayer && (
                         <div
                           style={{
                             padding: '2px 8px',
-                            background: 'var(--accent-cyan)',
-                            color: '#050811',
+                            background: occupyingPlayer.id === myPlayer?.id ? 'var(--accent-cyan)' : 'var(--accent-magenta)',
+                            color: occupyingPlayer.id === myPlayer?.id ? '#050811' : '#ffffff',
                             fontFamily: 'var(--font-display)',
                             fontSize: '0.7rem',
                             fontWeight: 900,
                             borderRadius: '3px',
-                            boxShadow: '0 0 10px var(--accent-cyan)',
+                            boxShadow: occupyingPlayer.id === myPlayer?.id ? '0 0 10px var(--accent-cyan)' : '0 0 10px var(--accent-magenta)',
                             letterSpacing: '0.05em',
                           }}
                         >
-                          ▲ {p1?.displayName?.slice(0, 5).toUpperCase() || 'P1'}
+                          {occupyingPlayer.id === myPlayer?.id ? '▲' : '▼'} {occupyingPlayer.displayName?.slice(0, 5).toUpperCase() || 'OP'}
                         </div>
                       )}
-                      {hasP2Token && (
-                        <div
-                          style={{
-                            padding: '2px 8px',
-                            background: 'var(--accent-magenta)',
-                            color: '#ffffff',
-                            fontFamily: 'var(--font-display)',
-                            fontSize: '0.7rem',
-                            fontWeight: 900,
-                            borderRadius: '3px',
-                            boxShadow: '0 0 10px var(--accent-magenta)',
-                            letterSpacing: '0.05em',
-                          }}
-                        >
-                          ▼ {p2?.displayName?.slice(0, 5).toUpperCase() || 'P2'}
-                        </div>
-                      )}
-                      {!hasP1Token && !hasP2Token && (
+                      {!occupyingPlayer && (
                         <div
                           style={{
                             fontSize: '1rem',
@@ -449,7 +429,7 @@ export const MatchPage: React.FC = () => {
                         </span>
                       ) : (
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                          {isP1Owner ? 'P1' : isP2Owner ? 'P2' : 'NEUTRAL'}
+                          {node.owner === 'NEUTRAL' ? 'NEUTRAL' : playersList.find(p => p.role === node.owner)?.displayName?.slice(0, 3).toUpperCase() || 'OWNED'}
                         </span>
                       )}
 
@@ -626,67 +606,76 @@ export const MatchPage: React.FC = () => {
         </div>
       )}
 
-      {/* Operatives Comparative Scoreboard with Target Progress */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr auto 1fr',
+          gridTemplateColumns: `repeat(auto-fit, minmax(280px, 1fr))`,
           gap: '16px',
           alignItems: 'center',
         }}
       >
-        {/* Player 1 HUD Card */}
-        <div
-          className="cyber-card"
-          style={{
-            padding: '18px 24px',
-            border: '2px solid var(--accent-cyan)',
-            boxShadow: myPlayer?.role === 'PLAYER_1' ? '0 0 20px rgba(0, 240, 255, 0.25)' : 'none',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--accent-cyan)', fontWeight: 700 }}>
-                PLAYER 01 {myPlayer?.role === 'PLAYER_1' ? '(YOU)' : ''}
-              </div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', color: 'var(--text-primary)', fontWeight: 700, marginTop: '2px' }}>
-                {p1?.displayName || 'Operative 1'}
-              </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                NODE: <span style={{ color: '#ffffff', fontWeight: 700 }}>{p1?.position}</span>
-              </div>
-            </div>
+        {playersList.map((p, index) => {
+          const isMe = p.id === user?.id;
+          const pProgress = Math.min(100, Math.round(((p.score || 0) / 500) * 100));
+          const accentColor = isMe ? 'var(--accent-cyan)' : 'var(--accent-magenta)';
+          const shadowColor = isMe ? 'rgba(0, 240, 255, 0.25)' : 'rgba(255, 0, 85, 0.25)';
+          const nameSuffix = isMe ? ' (YOU)' : '';
 
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-muted)' }}>SCORE</div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: '2.2rem', color: 'var(--accent-cyan)', fontWeight: 900, lineHeight: 1 }}>
-                {p1?.score || 0}
+          return (
+            <div
+              key={p.id}
+              className="cyber-card"
+              style={{
+                padding: '18px 24px',
+                border: `2px solid ${accentColor}`,
+                boxShadow: isMe ? `0 0 20px ${shadowColor}` : 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: accentColor, fontWeight: 700 }}>
+                    OPERATIVE 0{index + 1} {nameSuffix}
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', color: 'var(--text-primary)', fontWeight: 700, marginTop: '2px' }}>
+                    {p.displayName || `Operative ${index + 1}`}
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    NODE: <span style={{ color: '#ffffff', fontWeight: 700 }}>{p.position}</span>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-muted)' }}>SCORE</div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '2.2rem', color: accentColor, fontWeight: 900, lineHeight: 1 }}>
+                    {p.score || 0}
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar towards 500 PTS */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  <span>GOAL PROGRESS</span>
+                  <span>{pProgress}%</span>
+                </div>
+                <div style={{ height: '6px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${pProgress}%`,
+                      background: accentColor,
+                      boxShadow: `0 0 8px ${accentColor}`,
+                      transition: 'width 0.4s ease-out',
+                    }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-
-          {/* Progress Bar towards 500 PTS */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '4px' }}>
-              <span>GOAL PROGRESS</span>
-              <span>{p1Progress}%</span>
-            </div>
-            <div style={{ height: '6px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '3px', overflow: 'hidden' }}>
-              <div
-                style={{
-                  height: '100%',
-                  width: `${p1Progress}%`,
-                  background: 'var(--accent-cyan)',
-                  boxShadow: '0 0 8px var(--accent-cyan)',
-                  transition: 'width 0.4s ease-out',
-                }}
-              />
-            </div>
-          </div>
-        </div>
+          );
+        })}
 
         {/* Central Win Condition Gauge */}
         <div
@@ -699,6 +688,7 @@ export const MatchPage: React.FC = () => {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
+            gridColumn: '1 / -1', // span full width if needed
           }}
         >
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
@@ -718,59 +708,6 @@ export const MatchPage: React.FC = () => {
           </div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--accent-cyan)' }}>
             FIRST TO REACH
-          </div>
-        </div>
-
-        {/* Player 2 HUD Card */}
-        <div
-          className="cyber-card"
-          style={{
-            padding: '18px 24px',
-            border: '2px solid var(--accent-magenta)',
-            boxShadow: myPlayer?.role === 'PLAYER_2' ? '0 0 20px rgba(255, 0, 85, 0.25)' : 'none',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--accent-magenta)', fontWeight: 700 }}>
-                PLAYER 02 {myPlayer?.role === 'PLAYER_2' ? '(YOU)' : ''}
-              </div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', color: 'var(--text-primary)', fontWeight: 700, marginTop: '2px' }}>
-                {p2?.displayName || 'Operative 2'}
-              </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                NODE: <span style={{ color: '#ffffff', fontWeight: 700 }}>{p2?.position}</span>
-              </div>
-            </div>
-
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-muted)' }}>SCORE</div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: '2.2rem', color: 'var(--accent-magenta)', fontWeight: 900, lineHeight: 1 }}>
-                {p2?.score || 0}
-              </div>
-            </div>
-          </div>
-
-          {/* Progress Bar towards 500 PTS */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '4px' }}>
-              <span>GOAL PROGRESS</span>
-              <span>{p2Progress}%</span>
-            </div>
-            <div style={{ height: '6px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '3px', overflow: 'hidden' }}>
-              <div
-                style={{
-                  height: '100%',
-                  width: `${p2Progress}%`,
-                  background: 'var(--accent-magenta)',
-                  boxShadow: '0 0 8px var(--accent-magenta)',
-                  transition: 'width 0.4s ease-out',
-                }}
-              />
-            </div>
           </div>
         </div>
       </div>

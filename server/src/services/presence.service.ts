@@ -1,9 +1,9 @@
 import { PlayerStatus, PLAYER_STATUS } from '@nexora/shared';
 import { logger } from '../utils/logger';
-import { IPresenceStore, InMemoryPresenceStore } from '../stores/presence.store';
+import { IPresenceStore, InMemoryPresenceStore, RedisPresenceStore } from '../stores/presence.store';
+import { isRedisAvailable } from '../db/redis';
 
-// We initialize with the InMemory store for Phase D execution, ready for Redis swap
-export const presenceStore: IPresenceStore = new InMemoryPresenceStore();
+export const presenceStore: IPresenceStore = isRedisAvailable() ? new RedisPresenceStore() : new InMemoryPresenceStore();
 
 export class PresenceService {
   constructor(private store: IPresenceStore = presenceStore) {}

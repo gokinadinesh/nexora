@@ -107,3 +107,119 @@ export class InMemoryPresenceStore implements IPresenceStore {
     return sockets.length > 0 ? sockets[0] : undefined;
   }
 }
+
+import { redisClient } from '../db/redis';
+
+export class RedisPresenceStore implements IPresenceStore {
+  // Key structures:
+  // presence:user:{userId}:sockets -> Set of socketIds
+  // presence:socket:{socketId} -> userId (string)
+  // presence:user:{userId}:status -> PlayerStatus
+
+  async addConnection(userId: string, socketId: string): Promise<{ isFirstConnection: boolean; status: PlayerStatus }> {
+    const userSocketsKey = `presence:user:${userId}:sockets`;
+    const socketUserKey = `presence:socket:${socketId}`;
+    const userStatusKey = `presence:user:${userId}:status`;
+
+    // Add socket to user's set of sockets
+    const addedCount = await redisClient.sadd(userSocketsKey, socketId);
+    // Link socket to user
+    await redisClient.set(socketUserKey, userId);
+
+    const isFirstConnection = addedCount === 1 && (await redisClient.scard(userSocketsKey)) === 1;
+    
+    if (isFirstConnection) {
+      await redisClient.set(userStatusKey, PLAYER_STATUS.ONLINE);
+    }
+
+    const currentStatus = (await redisClient.get(userStatusKey)) as PlayerStatus | null;
+
+    return {
+      isFirstConnection,
+      status: currentStatus || PLAYER_STATUS.ONLINE,
+    };
+  }
+
+  async removeConnection(socketId: string): Promise<{ userId?: string; isLastConnection: boolean; remainingSockets: number }> {
+    const socketUserKey = `presence:socket:${socketId}`;
+    const userId = await redisClient.get(socketUserKey);
+
+    await redisClient.del(socketUserKey);
+
+    if (!userId) {
+      return { isLastConnection: false, remainingSockets: 0 };
+    }
+
+    const userSocketsKey = `presence:user:${userId}:sockets`;
+    await redisClient.srem(userSocketsKey, socketId);
+    const remainingSockets = await redisClient.scard(userSocketsKey);
+
+    if (remainingSockets === 0) {
+      const userStatusKey = `presence:user:${userId}:status`;
+      await redisClient.set(userStatusKey, PLAYER_STATUS.OFFLINE);
+      return { userId, isLastConnection: true, remainingSockets: 0 };
+    }
+
+    return { userId, isLastConnection: false, remainingSockets };
+  }
+
+  async setStatus(userId: string, status: PlayerStatus): Promise<void> {
+    const userStatusKey = `presence:user:${userId}:status`;
+    await redisClient.set(userStatusKey, status);
+  }
+
+  async getStatus(userId: string): Promise<PlayerStatus> {
+    const userSocketsKey = `presence:user:${userId}:sockets`;
+    const count = await redisClient.scard(userSocketsKey);
+    
+    if (count === 0) {
+      return PLAYER_STATUS.OFFLINE;
+    }
+    
+    const userStatusKey = `presence:user:${userId}:status`;
+    const status = await redisClient.get(userStatusKey) as PlayerStatus;
+    
+    return status || PLAYER_STATUS.ONLINE;
+  }
+
+  async isOnline(userId: string): Promise<boolean> {
+    const userSocketsKey = `presence:user:${userId}:sockets`;
+    const count = await redisClient.scard(userSocketsKey);
+    return count > 0;
+  }
+
+  async getOnlineUserIds(): Promise<string[]> {
+    let cursor = '0';
+    const userIds = new Set<string>();
+    
+    do {
+      const [nextCursor, keys] = await redisClient.scan(cursor, 'MATCH', 'presence:user:*:sockets', 'COUNT', 100);
+      cursor = nextCursor;
+      
+      for (const key of keys) {
+        const count = await redisClient.scard(key);
+        if (count > 0) {
+          const userId = key.split(':')[2];
+          userIds.add(userId);
+        }
+      }
+    } while (cursor !== '0');
+    
+    return Array.from(userIds);
+  }
+
+  async getOnlineCount(): Promise<number> {
+    return (await this.getOnlineUserIds()).length;
+  }
+
+  async getUserSockets(userId: string): Promise<string[]> {
+    const userSocketsKey = `presence:user:${userId}:sockets`;
+    return await redisClient.smembers(userSocketsKey);
+  }
+
+  async getPrimarySocket(userId: string): Promise<string | undefined> {
+    const sockets = await this.getUserSockets(userId);
+    return sockets.length > 0 ? sockets[0] : undefined;
+  }
+}
+

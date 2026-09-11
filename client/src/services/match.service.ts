@@ -13,5 +13,9 @@ export const matchService = {
   async getResult(matchId: string): Promise<MatchResultDetails> {
     return request<MatchResultDetails>(`/api/matches/${matchId}/result`);
   },
+
+  async getReplay(matchId: string): Promise<any> {
+    return request<any>(`/api/matches/${matchId}/replay`);
+  },
 };
 

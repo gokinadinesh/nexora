@@ -1,12 +1,7 @@
-import { FullGameState, GridNode, PlayerGameState, MATCH_STATUS } from '@nexora/shared';
-
-export const GRID_SIZE = 5;
-
-// Strategic special nodes (Center core and cardinal power conduits)
-export const SPECIAL_NODE_IDS = new Set<string>(['N22', 'N02', 'N42', 'N20', 'N24']);
+import { FullGameState, GridNode, PlayerGameState, MATCH_STATUS, LevelTemplate } from '@nexora/shared';
 
 export function getNodeCoordinates(nodeId: string): { row: number; col: number } {
-  const match = /^N([0-4])([0-4])$/.exec(nodeId);
+  const match = /^N(\d+)(\d+)$/.exec(nodeId);
   if (!match) {
     throw new Error(`Invalid node identifier format: ${nodeId}`);
   }
@@ -21,15 +16,16 @@ export function formatNodeId(row: number, col: number): string {
 }
 
 /**
- * Creates the authoritative 5x5 CyberGrid (25 nodes).
+ * Creates the authoritative CyberGrid based on a level template.
  */
-export function createInitialGrid(): Record<string, GridNode> {
+export function createInitialGrid(level: LevelTemplate, players: string[]): Record<string, GridNode> {
   const grid: Record<string, GridNode> = {};
+  const specialNodes = new Set(level.specialNodes);
 
-  for (let row = 0; row < GRID_SIZE; row++) {
-    for (let col = 0; col < GRID_SIZE; col++) {
+  for (let row = 0; row < level.gridSize; row++) {
+    for (let col = 0; col < level.gridSize; col++) {
       const id = formatNodeId(row, col);
-      const isSpecial = SPECIAL_NODE_IDS.has(id);
+      const isSpecial = specialNodes.has(id);
 
       grid[id] = {
         id,
@@ -45,8 +41,12 @@ export function createInitialGrid(): Record<string, GridNode> {
   }
 
   // Assign player starting nodes
-  grid['N00'].owner = 'PLAYER_1';
-  grid['N44'].owner = 'PLAYER_2';
+  players.forEach((playerId, index) => {
+    const startNode = level.startingPositions[index % level.startingPositions.length];
+    if (grid[startNode]) {
+      grid[startNode].owner = playerId;
+    }
+  });
 
   return grid;
 }
@@ -56,31 +56,26 @@ export function createInitialGrid(): Record<string, GridNode> {
  */
 export function createInitialGameState(
   matchId: string,
-  player1: { id: string; displayName: string; rating: number },
-  player2: { id: string; displayName: string; rating: number }
+  level: LevelTemplate,
+  playerInfos: { id: string; displayName: string; rating: number }[]
 ): FullGameState {
-  const grid = createInitialGrid();
+  const playerIds = playerInfos.map(p => p.id);
+  const grid = createInitialGrid(level, playerIds);
 
-  const players: Record<string, PlayerGameState> = {
-    [player1.id]: {
-      id: player1.id,
-      displayName: player1.displayName,
-      role: 'PLAYER_1',
-      rating: player1.rating,
+  const players: Record<string, PlayerGameState> = {};
+  
+  playerInfos.forEach((p, i) => {
+    const startNode = level.startingPositions[i % level.startingPositions.length];
+    players[p.id] = {
+      id: p.id,
+      displayName: p.displayName,
+      role: `PLAYER_${i + 1}`,
+      rating: p.rating,
       score: 0,
-      position: 'N00',
+      position: startNode,
       status: 'ACTIVE',
-    },
-    [player2.id]: {
-      id: player2.id,
-      displayName: player2.displayName,
-      role: 'PLAYER_2',
-      rating: player2.rating,
-      score: 0,
-      position: 'N44',
-      status: 'ACTIVE',
-    },
-  };
+    };
+  });
 
   const now = Date.now();
 
@@ -88,7 +83,7 @@ export function createInitialGameState(
     matchId,
     version: 1,
     status: MATCH_STATUS.ACTIVE,
-    turnPlayerId: player1.id, // Player 1 acts first
+    turnPlayerId: playerInfos[0].id, // Player 1 acts first
     turnNumber: 1,
     grid,
     players,
@@ -97,3 +92,4 @@ export function createInitialGameState(
     updatedAt: now,
   };
 }
+

@@ -37,6 +37,7 @@ export interface User {
   displayName?: string | null;
   avatar?: string;
   role?: UserRole;
+  isPro?: boolean;
   rating?: number;
   wins?: number;
   losses?: number;
@@ -80,6 +81,7 @@ export interface AuthenticatedUser {
   username: string;
   email: string;
   role?: UserRole;
+  isPro?: boolean;
 }
 
 // Player Competitive Profile (Safe - Never exposed credentials or hashes)
@@ -176,6 +178,8 @@ export interface MatchSessionDetails {
   winnerId?: string | null;
 }
 
+import { GameMode } from './levels';
+
 export interface QueueEntry {
   userId: string;
   socketId: string;
@@ -184,6 +188,12 @@ export interface QueueEntry {
   avatar: string;
   rating: number;
   queuedAt: number;
+  mode: GameMode;
+}
+
+export interface MatchmakingJoinRequest {
+  mode: GameMode;
+  socketId?: string;
 }
 
 export interface MatchmakingJoinResponse {
@@ -201,7 +211,7 @@ export interface MatchmakingError {
 
 // CyberGrid Real-Time Game Engine Contracts
 
-export type NodeOwner = 'NEUTRAL' | 'PLAYER_1' | 'PLAYER_2';
+export type NodeOwner = 'NEUTRAL' | string; // string represents player ID
 export type NodeType = 'NORMAL' | 'SPECIAL';
 
 export interface GridNode {
@@ -218,7 +228,7 @@ export interface GridNode {
 export interface PlayerGameState {
   id: string;
   displayName: string;
-  role: 'PLAYER_1' | 'PLAYER_2';
+  role: string; // Dynamic role or player identifier
   rating: number;
   score: number;
   position: string; // Current Node ID (e.g. N00)
@@ -489,3 +499,5 @@ export interface MonitoringSecurityResponse {
     suspiciousActivityCount: number;
   };
 }
+
+export * from './levels';

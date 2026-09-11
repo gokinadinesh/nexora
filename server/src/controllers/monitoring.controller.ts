@@ -15,7 +15,7 @@ export class MonitoringController {
   async getMetrics(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const health = await healthService.getHealthStatus();
-      const metrics = metricsService.getMetrics(health.services);
+      const metrics = await metricsService.getMetrics(health.services);
       res.status(200).json(metrics);
     } catch (error) {
       next(error);

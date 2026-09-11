@@ -1,11 +1,11 @@
 import { request } from './api';
-import { MatchmakingJoinResponse, QueueStatus } from '@nexora/shared';
+import { MatchmakingJoinResponse, QueueStatus, GameMode } from '@nexora/shared';
 
 export const matchmakingService = {
-  async joinQueue(socketId?: string): Promise<MatchmakingJoinResponse> {
+  async joinQueue(socketId?: string, mode: GameMode = '1v1'): Promise<MatchmakingJoinResponse> {
     return request<MatchmakingJoinResponse>('/api/matchmaking/join', {
       method: 'POST',
-      body: JSON.stringify({ socketId }),
+      body: JSON.stringify({ socketId, mode }),
     });
   },
 

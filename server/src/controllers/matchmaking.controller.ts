@@ -14,7 +14,7 @@ export class MatchmakingController {
       // Read socketId from request body or fallback to active socket from presence service
       let socketId = req.body?.socketId;
       if (!socketId) {
-        socketId = presenceService.getPrimarySocket(userId);
+        socketId = await presenceService.getPrimarySocket(userId);
       }
 
       if (!socketId) {
@@ -26,7 +26,8 @@ export class MatchmakingController {
         return;
       }
 
-      const result = await matchmakingService.joinQueue(userId, socketId);
+      const mode = req.body?.mode || '1v1';
+      const result = await matchmakingService.joinQueue(userId, socketId, mode);
       res.status(200).json(result);
     } catch (error: any) {
       next(error);
