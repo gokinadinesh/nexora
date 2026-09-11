@@ -203,6 +203,10 @@ export class MatchFinalizationService {
     const initialState = (gameStates.find(s => s.state_version === 1)?.state_json || {}) as FullGameState;
     const finalState = (gameStates.find(s => s.state_version === finalVersion)?.state_json || null) as FullGameState | null;
     
+    // 8. Cleanup active match session in memory BEFORE doing heavy DB persistence
+    // This ensures players aren't locked out if persistReplay fails
+    await matchSessionService.endSession(matchId);
+
     await gameRepository.persistReplay(
       matchId,
       durationSeconds,
@@ -210,9 +214,6 @@ export class MatchFinalizationService {
       matchEvents,
       finalState
     );
-
-    // 8. Cleanup active match session in memory
-    matchSessionService.endSession(matchId);
 
     // 8. Retrieve complete MatchResultDetails
     const resultDetails = await matchRepository.findMatchResultById(matchId);

@@ -12,6 +12,7 @@ import { presenceService } from './presence.service';
 import { matchService } from './match.service';
 import { matchSessionService } from './match-session.service';
 import { userRepository } from '../repositories/user.repository';
+import { matchRepository } from '../repositories/match.repository';
 import { getSocketServer } from '../sockets';
 import { lobbyService } from './lobby.service';
 import { logger } from '../utils/logger';
@@ -162,13 +163,20 @@ export class MatchmakingService {
     }
 
     // 3. Active match check
-    const isInMatch = await matchSessionService.isUserInActiveMatch(userId);
-    if (isInMatch) {
-      return {
-        eligible: false,
-        errorCode: 'ALREADY_IN_MATCH',
-        message: 'You are already in an active match session',
-      };
+    const activeSession = await matchSessionService.getSessionByUserId(userId);
+    if (activeSession) {
+      // Check if match is already finalized in the DB
+      const resultDetails = await matchRepository.findMatchResultById(activeSession.matchId);
+      if (resultDetails) {
+        // Ghost session detected, clear it
+        await matchSessionService.endSession(activeSession.matchId);
+      } else {
+        return {
+          eligible: false,
+          errorCode: 'ALREADY_IN_MATCH',
+          message: 'You are already in an active match session',
+        };
+      }
     }
 
     return { eligible: true };
