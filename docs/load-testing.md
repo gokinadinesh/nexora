@@ -8,6 +8,7 @@
 ## 1. Executive Summary
 
 As part of **Stage 8: Production Readiness & Scalability Architecture**, the NEXORA backend was subjected to concurrent load and stress testing to evaluate:
+
 1. **Liveness & Readiness Probe Throughput**: Ability to handle high-frequency health checks from container orchestrators and load balancers.
 2. **Authentication Throughput**: CPU-bound bcrypt password hashing and cryptographic JWT signing under concurrent user onboarding.
 3. **Real-Time Matchmaking Latency**: Queue admission and atomic pairing latency across concurrent operatives.
@@ -18,6 +19,7 @@ As part of **Stage 8: Production Readiness & Scalability Architecture**, the NEX
 ## 2. Test Environment & Methodology
 
 ### Infrastructure Profile
+
 - **Runtime**: Node.js 20.x on Windows 64-bit / Linux container
 - **Database Engine**: PostgreSQL 16 (Connection Pool: 10 max connections, 30s idle timeout)
 - **Protocol Stack**: HTTP/1.1 for REST, WebSocket (WSS) engine via Socket.IO 4.8.x
@@ -25,7 +27,7 @@ As part of **Stage 8: Production Readiness & Scalability Architecture**, the NEX
 ### Workload Matrix
 
 | Test Phase | Workload Description | Target SLA |
-|---|---|---|
+| --- | --- | --- |
 | **Phase 1: Probe Saturation** | 100 concurrent `GET /api/health` and `GET /api/ready` requests | p95 < 20ms, 0% error rate |
 | **Phase 2: Auth Stress** | 20 concurrent user registrations (`POST /api/auth/register`) with salt=10 bcrypt hashing and JWT token issuance | p95 < 300ms, 0% error rate |
 | **Phase 3: Matchmaking Pairing** | Concurrent queue entry of paired operatives with rating delta resolution | Pairing time < 100ms |
@@ -37,7 +39,7 @@ As part of **Stage 8: Production Readiness & Scalability Architecture**, the NEX
 
 Testing executed via `node scripts/load-test.cjs`:
 
-```
+```text
 ======================================================================
 ⚡ NEXORA PRODUCTION LOAD & BENCHMARK SUITE
 Target Host: http://localhost:4000
@@ -65,7 +67,7 @@ Target Host: http://localhost:4000
 ### Aggregate Performance Summary
 
 | Benchmark Category | Concurrency / Iterations | Measured Throughput | p50 Latency | p95 Latency | Success Rate |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | **HTTP Liveness Probe** | 100 requests | ~1,250 req/s | 1 ms | 3 ms | 100% |
 | **User Registration + JWT** | 20 concurrent ops | ~14 auth/s (bcrypt bounded) | 68 ms | 110 ms | 100% |
 | **Match Discovery & Room Setup** | 2 operative sockets | Sub-frame pairing | 18 ms | 25 ms | 100% |
