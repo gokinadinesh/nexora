@@ -187,6 +187,16 @@ export const MatchPage: React.FC = () => {
   const myPlayer = user ? gameState.players[user.id] : undefined;
   const opponentPlayers = playersList.filter((p) => p.id !== user?.id);
 
+  // Derive map level name from gridSize
+  let mapLevelName = 'Unknown Area';
+  if (gameState && gameState.grid) {
+    const nodeCount = Object.keys(gameState.grid).length;
+    const gridSize = Math.round(Math.sqrt(nodeCount));
+    if (gridSize === 5) mapLevelName = 'Level 1: Duel Arena';
+    else if (gridSize === 7) mapLevelName = 'Level 2: Skirmish';
+    else if (gridSize === 10) mapLevelName = 'Level 3: Warzone';
+  }
+
   const myPosition = myPlayer?.position || 'N00';
   const selectedNode = selectedNodeId ? gameState.grid[selectedNodeId] : null;
 
@@ -616,7 +626,7 @@ export const MatchPage: React.FC = () => {
       >
         {playersList.map((p, index) => {
           const isMe = p.id === user?.id;
-          const pProgress = Math.min(100, Math.round(((p.score || 0) / 500) * 100));
+          const pProgress = Math.min(100, Math.round(((p.score || 0) / 1500) * 100));
           const accentColor = isMe ? 'var(--accent-cyan)' : 'var(--accent-magenta)';
           const shadowColor = isMe ? 'rgba(0, 240, 255, 0.25)' : 'rgba(255, 0, 85, 0.25)';
           const nameSuffix = isMe ? ' (YOU)' : '';
@@ -655,7 +665,7 @@ export const MatchPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Progress Bar towards 500 PTS */}
+              {/* Progress Bar towards 1500 PTS */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '4px' }}>
                   <span>GOAL PROGRESS</span>
@@ -691,6 +701,9 @@ export const MatchPage: React.FC = () => {
             gridColumn: '1 / -1', // span full width if needed
           }}
         >
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--accent-cyan)', marginBottom: '8px', letterSpacing: '0.05em', fontWeight: 700 }}>
+            {mapLevelName.toUpperCase()}
+          </div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
             VICTORY THRESHOLD
           </div>
@@ -704,7 +717,7 @@ export const MatchPage: React.FC = () => {
               margin: '2px 0',
             }}
           >
-            500 PTS
+            1500 PTS
           </div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--accent-cyan)' }}>
             FIRST TO REACH

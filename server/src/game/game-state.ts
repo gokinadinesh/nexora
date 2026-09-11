@@ -15,12 +15,28 @@ export function formatNodeId(row: number, col: number): string {
   return `N${row}${col}`;
 }
 
-/**
- * Creates the authoritative CyberGrid based on a level template.
- */
 export function createInitialGrid(level: LevelTemplate, players: string[]): Record<string, GridNode> {
   const grid: Record<string, GridNode> = {};
-  const specialNodes = new Set(level.specialNodes);
+  
+  // Find valid nodes for special nodes (excluding starting positions)
+  const availableNodes: string[] = [];
+  for (let row = 0; row < level.gridSize; row++) {
+    for (let col = 0; col < level.gridSize; col++) {
+      const id = formatNodeId(row, col);
+      if (!level.startingPositions.includes(id)) {
+        availableNodes.push(id);
+      }
+    }
+  }
+
+  // Shuffle availableNodes
+  for (let i = availableNodes.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [availableNodes[i], availableNodes[j]] = [availableNodes[j], availableNodes[i]];
+  }
+
+  // Pick the requested number of special nodes
+  const specialNodes = new Set(availableNodes.slice(0, level.numSpecialNodes));
 
   for (let row = 0; row < level.gridSize; row++) {
     for (let col = 0; col < level.gridSize; col++) {

@@ -12,7 +12,7 @@ import { gameRepository } from '../repositories/game.repository';
 import { matchRepository } from '../repositories/match.repository';
 import { logger } from '../utils/logger';
 
-export const WINNING_SCORE_THRESHOLD = 500;
+export const WINNING_SCORE_THRESHOLD = 1500;
 export const ACTION_COOLDOWN_MS = 250;
 
 export interface ProcessActionResult {
