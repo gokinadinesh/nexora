@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: nexora-server
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: GOOGLE_CLOUD_PROJECT
+        value: nexora-grid-9024
+      - key: CLIENT_URL
+        value: https://nexora-grid-9024.web.app
+      - key: CORS_ORIGINS
+        value: https://nexora-grid-9024.web.app,https://nexora-grid-9024.firebaseapp.com
+      - key: OPERATOR_USERNAMES
+        value: operator,nexus_operator,admin
+      - key: OPERATOR_SECRET
+        generateValue: true
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PRO_PRICE_ID
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false
