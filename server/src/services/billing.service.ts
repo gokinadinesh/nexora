@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { logger } from '../utils/logger';
-import { getDatabasePool } from '../config/db';
+import { firestore } from '../config/firebase';
 
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY || 'sk_test_mock';
@@ -84,10 +84,13 @@ export class BillingService {
   async upgradeUserToPro(userId: string, subscriptionId: string): Promise<void> {
     try {
       logger.info(`Upgrading user ${userId} to Pro (Sub: ${subscriptionId})`);
-      const db = getDatabasePool();
-      await db.query(
-        `UPDATE users SET is_pro = true, stripe_subscription_id = $1 WHERE id = $2`,
-        [subscriptionId, userId]
+      await firestore.collection('users').doc(userId).set(
+        {
+          is_pro: true,
+          stripe_subscription_id: subscriptionId,
+          updated_at: new Date().toISOString(),
+        },
+        { merge: true }
       );
     } catch (error) {
       logger.error(`Error upgrading user ${userId}:`, error);

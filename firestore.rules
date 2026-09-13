@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All game mutations, competitive stats, matchmaking, and transactions
+    // are strictly server-authoritative and executed via the Firebase Admin SDK.
+    // Direct client writes are blocked to prevent state tampering and cheating.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Allow authenticated users to read their own user document
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    // Allow authenticated users to read public leaderboard info
+    match /users/{userId} {
+      allow read: if request.auth != null;
+    }
+  }
+}

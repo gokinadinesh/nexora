@@ -10,7 +10,7 @@ declare global {
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -33,13 +33,13 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   const token = parts[1];
 
   try {
-    const user = authService.verifyToken(token);
+    const user = await authService.verifyTokenAsync(token);
     req.user = user;
     next();
   } catch (err: any) {
     res.status(401).json({
       status: 'error',
-      message: 'Invalid or expired token',
+      message: err.message || 'Invalid or expired token',
     });
   }
 }

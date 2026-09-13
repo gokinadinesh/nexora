@@ -1,5 +1,5 @@
 import { SystemHealthStatus } from '@nexora/shared';
-import { getDatabasePool } from '../config/db';
+import { firestore } from '../config/firebase';
 import { matchmakingService } from '../services/matchmaking.service';
 import { getSocketServer } from '../sockets';
 
@@ -22,8 +22,7 @@ export class HealthService {
     }
 
     try {
-      const pool = getDatabasePool();
-      await pool.query('SELECT 1');
+      await firestore.collection('_health').doc('ping').get();
       this.lastDbStatus = 'healthy';
     } catch {
       this.lastDbStatus = 'degraded';

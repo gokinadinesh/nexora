@@ -1,256 +1,131 @@
-import crypto from 'crypto';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { AuthResponse, AuthenticatedUser, LoginRequest, RegisterRequest, User, GoogleLoginRequest } from '@nexora/shared';
+import { AuthResponse, AuthenticatedUser, User } from '@nexora/shared';
 import { IUserRepository, userRepository } from '../repositories/user.repository';
-import { authProviderRepository } from '../repositories/auth-provider.repository';
 import { toSafeUser } from '../models/user.model';
 import { config } from '../config/env';
-import { OAuth2Client } from 'google-auth-library';
+import { firebaseAuth, DecodedIdToken } from '../config/firebase';
 import { progressionService } from './progression.service';
+import { logger } from '../utils/logger';
 
 export class AuthService {
   constructor(private userRepo: IUserRepository = userRepository) {}
 
   /**
-   * Registers a new user. Validates input, hashes password, and issues JWT.
+   * Verifies a Firebase ID token using Firebase Admin SDK.
    */
-  async register(data: RegisterRequest): Promise<AuthResponse> {
-    const { username, email, password } = data;
-
-    // 1. Validation
-    this.validateRegistrationInput(username, email, password);
-
-    const normalizedEmail = email.trim().toLowerCase();
-    const normalizedUsername = username.trim();
-
-    // 2. Check for duplicate username
-    const existingByUsername = await this.userRepo.findByUsername(normalizedUsername);
-    if (existingByUsername) {
-      const err: any = new Error('Username is already registered');
-      err.statusCode = 409;
-      throw err;
-    }
-
-    // 3. Check for duplicate email
-    const existingByEmail = await this.userRepo.findByEmail(normalizedEmail);
-    if (existingByEmail) {
-      const err: any = new Error('Email is already registered');
-      err.statusCode = 409;
-      throw err;
-    }
-
-    // 4. Secure Password Hashing
-    const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
-
-    // 5. Safe UUID generation
-    const id = crypto.randomUUID();
-
-    // 6. Check operator role assignment (server-controlled)
-    let role: 'PLAYER' | 'OPERATOR' = 'PLAYER';
-    if (config.isProduction) {
-      // In production, require explicit listing in OPERATOR_USERNAMES without generic fallbacks
-      const configuredOperators = config.operatorUsernames;
-      if (configuredOperators.length > 0 && configuredOperators.includes(normalizedUsername.toLowerCase())) {
-        role = 'OPERATOR';
-      }
-    } else {
-      // In development/testing, allow convenient defaults
-      const configuredOperators = config.operatorUsernames.length > 0
-        ? config.operatorUsernames
-        : ['operator', 'nexus_operator', 'admin'];
-      const isOperator =
-        configuredOperators.includes(normalizedUsername.toLowerCase()) ||
-        normalizedEmail === 'operator@nexora.io';
-      role = isOperator ? 'OPERATOR' : 'PLAYER';
-    }
-
-    // 7. Create user record
-    const userRow = await this.userRepo.create({
-      id,
-      username: normalizedUsername,
-      email: normalizedEmail,
-      passwordHash,
-      role,
-    });
-
-    await progressionService.initializeProgression(userRow.id);
-
-    const safeUser: User = toSafeUser(userRow);
-
-    // 8. Generate JWT
-    const token = this.generateToken(safeUser);
-
-    return {
-      user: safeUser,
-      token,
-    };
-  }
-
-  /**
-   * Authenticates an existing user and returns JWT.
-   */
-  async login(data: LoginRequest): Promise<AuthResponse> {
-    const { email, password } = data;
-
-    if (!email || !password) {
-      const err: any = new Error('Email and password are required');
-      err.statusCode = 400;
-      throw err;
-    }
-
-    const normalizedEmail = email.trim().toLowerCase();
-
-    // Find user by email
-    const userRow = await this.userRepo.findByEmail(normalizedEmail);
-    if (!userRow) {
-      const err: any = new Error('Invalid email or password');
-      err.statusCode = 401;
-      throw err;
-    }
-
-    // Verify password hash
-    const isPasswordValid = await bcrypt.compare(password, userRow.password_hash);
-    if (!isPasswordValid) {
-      const err: any = new Error('Invalid email or password');
-      err.statusCode = 401;
-      throw err;
-    }
-
-    const safeUser = toSafeUser(userRow);
-    const token = this.generateToken(safeUser);
-
-    return {
-      user: safeUser,
-      token,
-    };
-  }
-
-  /**
-   * Authenticates a user via Google Sign-In.
-   */
-  async googleLogin(data: GoogleLoginRequest): Promise<AuthResponse> {
-    const { token } = data;
-    if (!token) {
-      const err: any = new Error('Google ID token is required');
-      err.statusCode = 400;
-      throw err;
-    }
-
-    if (!config.googleClientId) {
-      const err: any = new Error('Google Sign-In is not configured on the server');
-      err.statusCode = 501;
-      throw err;
-    }
-
-    const client = new OAuth2Client(config.googleClientId);
-
-    let ticket;
+  async verifyFirebaseToken(idToken: string): Promise<DecodedIdToken> {
     try {
-      ticket = await client.verifyIdToken({
-        idToken: token,
-        audience: config.googleClientId,
-      });
-    } catch (e) {
-      const err: any = new Error('Invalid Google token');
-      err.statusCode = 401;
-      throw err;
-    }
-
-    const payload = ticket.getPayload();
-    if (!payload || !payload.sub || !payload.email) {
-      const err: any = new Error('Incomplete Google token payload');
-      err.statusCode = 400;
-      throw err;
-    }
-
-    const providerSub = payload.sub;
-    const email = payload.email.toLowerCase();
-
-    // 1. Check if we already have this google account linked
-    const linkedProvider = await authProviderRepository.findByProvider('google', providerSub);
-    
-    let userRow;
-
-    if (linkedProvider) {
-      userRow = await this.userRepo.findById(linkedProvider.user_id);
-      if (!userRow) {
-        const err: any = new Error('Linked user not found');
-        err.statusCode = 500;
-        throw err;
-      }
-    } else {
-      // 2. See if a user with this email already exists
-      userRow = await this.userRepo.findByEmail(email);
-      
-      if (userRow) {
-        // Link the existing account
-        await authProviderRepository.linkProvider(userRow.id, 'google', providerSub);
-      } else {
-        // 3. Create a new user entirely
-        const usernameBase = payload.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') + Math.floor(Math.random() * 1000);
-        const randomPassword = crypto.randomBytes(32).toString('hex');
-        const passwordHash = await bcrypt.hash(randomPassword, 10);
-        const id = crypto.randomUUID();
-
-        userRow = await this.userRepo.create({
-          id,
-          username: usernameBase.substring(0, 24),
-          email,
-          passwordHash,
-          role: 'PLAYER',
-          displayName: payload.name ? payload.name.substring(0, 30) : usernameBase.substring(0, 30),
-          avatar: payload.picture ? payload.picture.substring(0, 255) : 'default_operative'
-        });
-
-        await authProviderRepository.linkProvider(id, 'google', providerSub);
-        await progressionService.initializeProgression(userRow.id);
-      }
-    }
-
-    const safeUser = toSafeUser(userRow);
-    const jwtToken = this.generateToken(safeUser);
-
-    return {
-      user: safeUser,
-      token: jwtToken,
-    };
-  }
-
-  /**
-   * Generates a signed JWT with standard claims.
-   */
-  generateToken(user: AuthenticatedUser | User): string {
-    return jwt.sign(
-      {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role || 'PLAYER',
-      },
-      config.jwtSecret,
-      { expiresIn: '7d' }
-    );
-  }
-
-  /**
-   * Verifies and decodes a JWT token.
-   */
-  verifyToken(token: string): AuthenticatedUser {
-    try {
-      const decoded = jwt.verify(token, config.jwtSecret) as AuthenticatedUser;
-      return {
-        id: decoded.id,
-        username: decoded.username,
-        email: decoded.email,
-        role: decoded.role || 'PLAYER',
-      };
-    } catch (err: any) {
-      const authErr: any = new Error('Invalid or expired token');
+      return await firebaseAuth.verifyIdToken(idToken);
+    } catch (error: any) {
+      const authErr: any = new Error(error.message || 'Invalid or expired Firebase token');
       authErr.statusCode = 401;
       throw authErr;
     }
+  }
+
+  /**
+   * Resolves or creates a user record in Firestore given a decoded Firebase ID token.
+   */
+  async getOrCreateUser(
+    decodedToken: DecodedIdToken,
+    profile?: { username?: string; displayName?: string; avatar?: string }
+  ): Promise<User> {
+    const uid = decodedToken.uid;
+    const email = (decodedToken.email || '').toLowerCase();
+
+    // 1. Check if user exists by ID (Firebase UID)
+    let userRow = await this.userRepo.findById(uid);
+
+    // 2. If not found by ID, check by email (in case of re-linking or pre-existing accounts)
+    if (!userRow && email) {
+      userRow = await this.userRepo.findByEmail(email);
+    }
+
+    if (userRow) {
+      return toSafeUser(userRow);
+    }
+
+    // 3. User does not exist, create new operative profile in Firestore
+    const emailPrefix = email ? email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') : 'operative';
+    const fallbackUsername = (emailPrefix + Math.floor(Math.random() * 1000)).substring(0, 24);
+    const username = (profile?.username || fallbackUsername).trim();
+    const displayName = profile?.displayName || decodedToken.name || username;
+    const avatar = profile?.avatar || decodedToken.picture || 'default_operative';
+
+    // Operator role resolution (server-controlled)
+    let role = 'PLAYER';
+    const configuredOperators = config.operatorUsernames;
+    if (
+      (configuredOperators.length > 0 && configuredOperators.includes(username.toLowerCase())) ||
+      email === 'operator@nexora.io'
+    ) {
+      role = 'OPERATOR';
+    }
+
+    try {
+      userRow = await this.userRepo.create({
+        id: uid,
+        username,
+        email: email || `${uid}@firebase.nexora.io`,
+        passwordHash: '',
+        displayName,
+        avatar,
+        role,
+      });
+    } catch (err: any) {
+      // If username was already taken, retry with random suffix
+      if (err.statusCode === 409) {
+        const uniqueUsername = (username.substring(0, 18) + '_' + Math.floor(Math.random() * 9000 + 1000)).substring(0, 24);
+        userRow = await this.userRepo.create({
+          id: uid,
+          username: uniqueUsername,
+          email: email || `${uid}@firebase.nexora.io`,
+          passwordHash: '',
+          displayName,
+          avatar,
+          role,
+        });
+      } else {
+        throw err;
+      }
+    }
+
+    await progressionService.initializeProgression(userRow.id);
+    logger.info(`AuthService: Created new Firestore user for UID ${uid} (${username})`);
+    return toSafeUser(userRow);
+  }
+
+  /**
+   * Verifies Firebase ID token and returns authenticated user details.
+   */
+  async verifyTokenAsync(idToken: string): Promise<AuthenticatedUser> {
+    const decoded = await this.verifyFirebaseToken(idToken);
+    const safeUser = await this.getOrCreateUser(decoded);
+    return {
+      id: safeUser.id,
+      username: safeUser.username,
+      email: safeUser.email,
+      role: safeUser.role,
+    };
+  }
+
+  /**
+   * Synchronous token verification placeholder for compatibility.
+   */
+  verifyToken(idToken: string): AuthenticatedUser {
+    // If a synchronous decode is needed, we verify asynchronously via verifyTokenAsync
+    throw new Error('Please use verifyTokenAsync for Firebase ID token verification');
+  }
+
+  /**
+   * Verifies a token and returns full User and token payload for the client.
+   */
+  async verifySession(idToken: string): Promise<AuthResponse> {
+    const decoded = await this.verifyFirebaseToken(idToken);
+    const user = await this.getOrCreateUser(decoded);
+    return {
+      user,
+      token: idToken,
+    };
   }
 
   /**
@@ -258,53 +133,6 @@ export class AuthService {
    */
   async promoteToOperator(userId: string) {
     return this.userRepo.setRole(userId, 'OPERATOR');
-  }
-
-  private validateRegistrationInput(username?: string, email?: string, password?: string): void {
-    if (!username || typeof username !== 'string') {
-      const err: any = new Error('Username is required');
-      err.statusCode = 400;
-      throw err;
-    }
-
-    const trimmedUsername = username.trim();
-    if (trimmedUsername.length < 3 || trimmedUsername.length > 24) {
-      const err: any = new Error('Username must be between 3 and 24 characters');
-      err.statusCode = 400;
-      throw err;
-    }
-
-    const usernameRegex = /^[a-zA-Z0-9_]+$/;
-    if (!usernameRegex.test(trimmedUsername)) {
-      const err: any = new Error('Username may only contain letters, numbers, and underscores');
-      err.statusCode = 400;
-      throw err;
-    }
-
-    if (!email || typeof email !== 'string') {
-      const err: any = new Error('Email is required');
-      err.statusCode = 400;
-      throw err;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      const err: any = new Error('Invalid email format');
-      err.statusCode = 400;
-      throw err;
-    }
-
-    if (!password || typeof password !== 'string') {
-      const err: any = new Error('Password is required');
-      err.statusCode = 400;
-      throw err;
-    }
-
-    if (password.length < 8) {
-      const err: any = new Error('Password must be at least 8 characters long');
-      err.statusCode = 400;
-      throw err;
-    }
   }
 }
 

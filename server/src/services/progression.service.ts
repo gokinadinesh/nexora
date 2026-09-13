@@ -1,9 +1,9 @@
-import { getDatabasePool } from '../config/db';
+import { firestore } from '../config/firebase';
 import { logger } from '../utils/logger';
 
 export const MAX_LEVEL = 100;
 export const XP_MULTIPLIER = 500; // xp required = 500 * (level - 1)^2
-// Let's use: level = Math.floor(Math.sqrt(xp / 500)) + 1
+// level = Math.floor(Math.sqrt(xp / 500)) + 1
 
 export function calculateLevel(xp: number): number {
   if (xp < 0) return 1;
@@ -36,37 +36,64 @@ export interface XPTransactionResult {
 }
 
 export class ProgressionService {
+  private progressionCollection = firestore.collection('player_progression');
+  private transactionsCollection = firestore.collection('xp_transactions');
+  private usersCollection = firestore.collection('users');
+
   /**
    * Initializes player progression if it doesn't exist.
    */
   async initializeProgression(userId: string): Promise<void> {
-    const pool = getDatabasePool();
-    await pool.query(
-      `INSERT INTO player_progression (user_id, level, xp, milestone_title)
-       VALUES ($1, 1, 0, 'Recruit')
-       ON CONFLICT (user_id) DO NOTHING`,
-      [userId]
-    );
+    const docRef = this.progressionCollection.doc(userId);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      const now = new Date().toISOString();
+      await docRef.set({
+        user_id: userId,
+        level: 1,
+        xp: 0,
+        milestone_title: 'Recruit',
+        created_at: now,
+        updated_at: now,
+      });
+
+      // Also ensure user doc has level & xp
+      await this.usersCollection.doc(userId).set(
+        {
+          level: 1,
+          xp: 0,
+          milestone_title: 'Recruit',
+          updated_at: now,
+        },
+        { merge: true }
+      );
+    }
   }
 
   /**
    * Fetches progression for a user. Initializes if not found.
    */
-  async getProgression(userId: string) {
-    const pool = getDatabasePool();
-    let result = await pool.query(
-      'SELECT level, xp, milestone_title FROM player_progression WHERE user_id = $1',
-      [userId]
-    );
-    
-    if (result.rows.length === 0) {
+  async getProgression(userId: string): Promise<{ level: number; xp: number; milestone_title: string }> {
+    const docRef = this.progressionCollection.doc(userId);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
       await this.initializeProgression(userId);
-      result = await pool.query(
-        'SELECT level, xp, milestone_title FROM player_progression WHERE user_id = $1',
-        [userId]
-      );
+      const newDoc = await docRef.get();
+      const data = newDoc.data();
+      return {
+        level: Number(data?.level ?? 1),
+        xp: Number(data?.xp ?? 0),
+        milestone_title: data?.milestone_title || 'Recruit',
+      };
     }
-    return result.rows[0];
+
+    const data = doc.data();
+    return {
+      level: Number(data?.level ?? 1),
+      xp: Number(data?.xp ?? 0),
+      milestone_title: data?.milestone_title || 'Recruit',
+    };
   }
 
   /**
@@ -80,17 +107,15 @@ export class ProgressionService {
     matchId: string | null = null,
     idempotencyKey: string | null = null
   ): Promise<XPTransactionResult | null> {
-    const pool = getDatabasePool();
-
     // Check idempotency key first if provided
     if (idempotencyKey) {
-      const existing = await pool.query(
-        'SELECT transaction_id FROM xp_transactions WHERE idempotency_key = $1',
-        [idempotencyKey]
-      );
-      if (existing.rows.length > 0) {
+      const existing = await this.transactionsCollection
+        .where('idempotency_key', '==', idempotencyKey)
+        .limit(1)
+        .get();
+      if (!existing.empty) {
         logger.info(`ProgressionService: Skipping duplicate XP transaction for key ${idempotencyKey}`);
-        return null; // Already processed
+        return null;
       }
     }
 
@@ -102,22 +127,43 @@ export class ProgressionService {
     const newLevel = calculateLevel(newXp);
     const newMilestone = getMilestoneTitle(newLevel);
     const leveledUp = newLevel > previousLevel;
+    const now = new Date().toISOString();
 
-    // Use a transaction or sequential queries (pg-mem friendly where transactions might be tricky, but sequential is fine for this case)
     // 1. Insert transaction record
-    await pool.query(
-      `INSERT INTO xp_transactions 
-       (user_id, match_id, source, amount, previous_xp, new_xp, previous_level, new_level, idempotency_key)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [userId, matchId, source, amount, previousXp, newXp, previousLevel, newLevel, idempotencyKey]
-    );
+    await this.transactionsCollection.add({
+      user_id: userId,
+      match_id: matchId,
+      source,
+      amount,
+      previous_xp: previousXp,
+      new_xp: newXp,
+      previous_level: previousLevel,
+      new_level: newLevel,
+      idempotency_key: idempotencyKey,
+      created_at: now,
+    });
 
     // 2. Update player_progression
-    await pool.query(
-      `UPDATE player_progression 
-       SET xp = $1, level = $2, milestone_title = $3, updated_at = CURRENT_TIMESTAMP
-       WHERE user_id = $4`,
-      [newXp, newLevel, newMilestone, userId]
+    await this.progressionCollection.doc(userId).set(
+      {
+        user_id: userId,
+        xp: newXp,
+        level: newLevel,
+        milestone_title: newMilestone,
+        updated_at: now,
+      },
+      { merge: true }
+    );
+
+    // 3. Update user document
+    await this.usersCollection.doc(userId).set(
+      {
+        xp: newXp,
+        level: newLevel,
+        milestone_title: newMilestone,
+        updated_at: now,
+      },
+      { merge: true }
     );
 
     if (leveledUp) {
@@ -131,7 +177,7 @@ export class ProgressionService {
       previousLevel,
       newLevel,
       leveledUp,
-      newMilestone
+      newMilestone,
     };
   }
 
@@ -147,7 +193,7 @@ export class ProgressionService {
     durationSeconds: number
   ): Promise<XPTransactionResult | null> {
     let amount = 0;
-    
+
     // Base outcome XP
     if (isWinner) amount += 200;
     else if (isDraw) amount += 100;
@@ -155,11 +201,11 @@ export class ProgressionService {
 
     // Performance bonus
     amount += Math.floor(score / 10);
-    
+
     // Duration bonus (max 100 for a 1000s match)
     amount += Math.min(100, Math.floor(durationSeconds / 10));
 
-    const source = isWinner ? 'MATCH_WIN' : (isDraw ? 'MATCH_DRAW' : 'MATCH_LOSS');
+    const source = isWinner ? 'MATCH_WIN' : isDraw ? 'MATCH_DRAW' : 'MATCH_LOSS';
     const idempotencyKey = `match_xp_${matchId}_${userId}`;
 
     return this.grantXP(userId, amount, source, matchId, idempotencyKey);

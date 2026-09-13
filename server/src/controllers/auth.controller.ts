@@ -5,30 +5,24 @@ import { toPlayerProfile } from '../models/user.model';
 import { presenceService } from '../services/presence.service';
 
 export class AuthController {
-  async register(req: Request, res: Response, next: NextFunction): Promise<void> {
+  /**
+   * Verifies a Firebase ID token and syncs the user profile in Firestore.
+   */
+  async verify(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { username, email, password } = req.body;
-      const result = await authService.register({ username, email, password });
-      res.status(201).json(result);
-    } catch (error) {
-      next(error);
-    }
-  }
+      const authHeader = req.headers.authorization;
+      let token = req.body?.token;
 
-  async login(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const { email, password } = req.body;
-      const result = await authService.login({ email, password });
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
-  }
+      if (!token && authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7).trim();
+      }
 
-  async googleLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const { token } = req.body;
-      const result = await authService.googleLogin({ token });
+      if (!token) {
+        res.status(400).json({ status: 'error', message: 'Firebase ID token is required' });
+        return;
+      }
+
+      const result = await authService.verifySession(token);
       res.status(200).json(result);
     } catch (error) {
       next(error);

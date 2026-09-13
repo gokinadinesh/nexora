@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { AuthenticatedUser, LoginRequest, RegisterRequest } from '@nexora/shared';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../config/firebase';
 import { authService } from '../services/auth.service';
-import { getStoredToken } from '../services/api';
+import { getStoredToken, setStoredToken, clearStoredToken } from '../services/api';
 import { reconnectSocketWithAuth } from '../services/socket';
 
 export interface AuthContextType {
@@ -10,8 +12,8 @@ export interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (data: LoginRequest) => Promise<void>;
-
   register: (data: RegisterRequest) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => void;
 }
 
@@ -22,31 +24,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [token, setToken] = useState<string | null>(getStoredToken());
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Check initial authentication state on mount
+  // Listen to Firebase Auth state changes
   useEffect(() => {
-    async function loadUser() {
-      const storedToken = getStoredToken();
-      if (!storedToken) {
-        setIsLoading(false);
-        return;
-      }
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const idToken = await firebaseUser.getIdToken();
+          setStoredToken(idToken);
+          setToken(idToken);
 
-      try {
-        const currentUser = await authService.getMe();
-        setUser(currentUser);
-        setToken(storedToken);
-        reconnectSocketWithAuth(storedToken);
-      } catch (err) {
-        // Token expired or invalid
-        authService.logout();
+          // Verify with backend to get rich operative profile & role
+          const syncRes = await authService.verifySession(idToken);
+          setUser(syncRes.user);
+          reconnectSocketWithAuth(idToken);
+        } catch (err) {
+          console.warn('Backend session verification failed, using Firebase credentials:', err);
+          // Fallback to basic user identity from Firebase Auth
+          const fallbackUser: AuthenticatedUser = {
+            id: firebaseUser.uid,
+            username: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Operative',
+            email: firebaseUser.email || '',
+            role: 'PLAYER',
+          };
+          setUser(fallbackUser);
+        }
+      } else {
+        clearStoredToken();
         setUser(null);
         setToken(null);
-      } finally {
-        setIsLoading(false);
+        reconnectSocketWithAuth(undefined);
       }
-    }
+      setIsLoading(false);
+    });
 
-    loadUser();
+    return () => unsubscribe();
   }, []);
 
   const login = async (data: LoginRequest) => {
@@ -56,10 +67,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     reconnectSocketWithAuth(res.token);
   };
 
-
-
   const register = async (data: RegisterRequest) => {
     const res = await authService.register(data);
+    setUser(res.user);
+    setToken(res.token);
+    reconnectSocketWithAuth(res.token);
+  };
+
+  const loginWithGoogle = async () => {
+    const res = await authService.loginWithGoogle();
     setUser(res.user);
     setToken(res.token);
     reconnectSocketWithAuth(res.token);
@@ -80,8 +96,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isLoading,
         isAuthenticated: !!user,
         login,
-
         register,
+        loginWithGoogle,
         logout,
       }}
     >

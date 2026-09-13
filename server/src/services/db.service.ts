@@ -1,5 +1,3 @@
-import { getDatabasePool } from '../config/db';
-
 export interface QueryResponse<T = any> {
   rows: T[];
   rowCount: number | null;
@@ -7,13 +5,9 @@ export interface QueryResponse<T = any> {
 
 export const dbService = {
   /**
-   * Execute a query against the active database pool.
+   * Deprecated stub: Postgres replaced with Firestore.
    */
-  async query<T = any>(
-    text: string,
-    params?: unknown[]
-  ): Promise<QueryResponse<T>> {
-    const pool = getDatabasePool();
-    return pool.query<T>(text, params);
+  async query<T = any>(_text: string, _params?: unknown[]): Promise<QueryResponse<T>> {
+    return { rows: [], rowCount: 0 };
   },
 };

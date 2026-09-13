@@ -3,7 +3,6 @@ import { createApp } from './app';
 import { config, validateConfig } from './config/env';
 import { initSocketServer, closeSocketServer } from './sockets';
 import { checkDatabaseConnection, closeDatabasePool } from './config/db';
-import { runMigrations } from './db/run-migrations';
 import { setServerShuttingDown } from './controllers/readiness.controller';
 import { matchmakingService } from './services/matchmaking.service';
 import { logger } from './utils/logger';
@@ -30,16 +29,15 @@ async function bootstrap() {
   // 2. Initialize Socket.IO attached to HTTP server
   initSocketServer(httpServer);
 
-  // 3. Database connection readiness check
+  // 3. Firestore connectivity readiness check
   try {
     await checkDatabaseConnection();
-    await runMigrations();
   } catch (err: any) {
-    logger.warn('Initial database check encountered an error:', err.message);
+    logger.warn('Initial Firestore check notice:', err.message);
   }
 
   // 4. Start HTTP listener
-  httpServer.listen(config.port, "0.0.0.0", () => {
+  httpServer.listen(config.port, '0.0.0.0', () => {
     logger.info(`NEXORA Server running on port ${config.port} [NODE_ENV=${config.nodeEnv}]`);
     logger.info(`Liveness probe:  http://localhost:${config.port}/api/health`);
     logger.info(`Readiness probe: http://localhost:${config.port}/api/ready`);
@@ -80,7 +78,7 @@ async function bootstrap() {
         });
       });
 
-      // 4. Drain PostgreSQL database connection pool
+      // 4. Close database resources
       await closeDatabasePool();
 
       logger.info('NEXORA Server shut down cleanly.');

@@ -40,18 +40,18 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
   }
 
   // Authentication Middleware Preparation
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const rawAuth = socket.handshake.auth?.token || socket.handshake.headers?.authorization;
     const token = typeof rawAuth === 'string' ? rawAuth.replace(/^Bearer\s+/i, '').trim() : undefined;
 
     if (token) {
       try {
-        const user = authService.verifyToken(token);
+        const user = await authService.verifyTokenAsync(token);
         socket.data.user = user;
         socket.data.userId = user.id;
         return next();
       } catch (err: any) {
-        // Record security telemetry on invalid JWT connection attempt
+        // Record security telemetry on invalid token connection attempt
         securityService.recordSecurityEvent({
           type: 'INVALID_JWT',
           severity: 'MEDIUM',

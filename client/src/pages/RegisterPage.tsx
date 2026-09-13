@@ -72,7 +72,16 @@ export const RegisterPage: React.FC = () => {
       // Direct competitive onboarding directly into the Lobby command center
       navigate('/lobby');
     } catch (err: any) {
-      setError(err.message || 'Registration failed - check network status');
+      const code = err?.code || '';
+      if (code === 'auth/email-already-in-use') {
+        setError('Operative identity already registered with this email');
+      } else if (code === 'auth/weak-password') {
+        setError('Security key is too weak - please use at least 8 characters');
+      } else if (code === 'auth/invalid-email') {
+        setError('Invalid operative email format');
+      } else {
+        setError(err.message || 'Registration failed - check network status');
+      }
     } finally {
       setIsSubmitting(false);
     }

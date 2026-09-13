@@ -6,8 +6,9 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 export interface AppConfig {
   port: number;
-  databaseUrl: string;
-  jwtSecret: string;
+  firebaseProjectId: string;
+  databaseUrl?: string;
+  jwtSecret?: string;
   clientUrl: string;
   nodeEnv: string;
   isProduction: boolean;
@@ -37,8 +38,9 @@ const parsedCorsOrigins = process.env.CORS_ORIGINS
 
 export const config: AppConfig = {
   port: parseInt(process.env.PORT || '4000', 10),
-  databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/nexora',
-  jwtSecret: process.env.JWT_SECRET || 'dev_jwt_secret_change_me',
+  firebaseProjectId: process.env.GOOGLE_CLOUD_PROJECT || process.env.FIREBASE_PROJECT_ID || 'nexora-grid-9024',
+  databaseUrl: process.env.DATABASE_URL,
+  jwtSecret: process.env.JWT_SECRET || 'firebase_managed_auth',
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   nodeEnv,
   isProduction,
@@ -54,30 +56,13 @@ export const config: AppConfig = {
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
 };
 
-const INSECURE_JWT_SECRETS = new Set([
-  'dev_jwt_secret_change_me',
-  'development_secret_change_in_production',
-  'secret',
-  'password',
-  '123456',
-]);
-
 /**
  * Validates critical environment settings.
- * In production mode, rejects insecure defaults and missing requirements.
  */
 export function validateConfig(cfg: AppConfig = config): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
   if (cfg.isProduction) {
-    if (!cfg.jwtSecret || INSECURE_JWT_SECRETS.has(cfg.jwtSecret) || cfg.jwtSecret.length < 16) {
-      errors.push('WARNING: JWT_SECRET should be set to a secure string with at least 16 characters in production.');
-    }
-
-    if (!process.env.DATABASE_URL) {
-      errors.push('WARNING: DATABASE_URL is not set. The server will fall back to an in-memory database in production, which is not recommended.');
-    }
-
     if (cfg.operatorSecret === 'nexora-secret-operator-key-stage7') {
       errors.push('WARNING: Default development OPERATOR_SECRET is in use; operator promotion will be disabled in production.');
     }
