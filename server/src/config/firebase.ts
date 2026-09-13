@@ -3,6 +3,9 @@ import { getAuth, Auth, DecodedIdToken } from 'firebase-admin/auth';
 import { getFirestore, Firestore, DocumentSnapshot, Transaction, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { logger } from '../utils/logger';
 
+import fs from 'fs';
+import path from 'path';
+
 let app: App;
 
 if (getApps().length === 0) {
@@ -19,11 +22,37 @@ if (getApps().length === 0) {
     }
   }
 
-  app = initializeApp({
+  if (!credential) {
+    const candidatePaths = [
+      path.resolve(process.cwd(), 'service-account.json'),
+      path.resolve(process.cwd(), 'server', 'service-account.json'),
+      path.resolve(__dirname, '../../service-account.json'),
+      path.resolve(__dirname, '../../../server/service-account.json')
+    ];
+
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        try {
+          const fileContent = JSON.parse(fs.readFileSync(p, 'utf-8'));
+          credential = cert(fileContent);
+          logger.info(`Firebase Admin SDK: loaded credentials from ${p}`);
+          break;
+        } catch (err: any) {
+          logger.warn(`Failed reading service account file at ${p}:`, err.message);
+        }
+      }
+    }
+  }
+
+  const appOptions: any = {
     projectId: process.env.GOOGLE_CLOUD_PROJECT || 'nexora-grid-9024',
-    credential,
-  });
-  logger.info('Firebase Admin SDK initialized');
+  };
+  if (credential) {
+    appOptions.credential = credential;
+  }
+
+  app = initializeApp(appOptions);
+  logger.info('Firebase Admin SDK initialized successfully');
 } else {
   app = getApps()[0];
 }

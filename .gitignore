@@ -34,3 +34,6 @@ Thumbs.db
 .eslintcache
 .firebase/
 test-results/
+*service-account*.json
+*.key.json
+
