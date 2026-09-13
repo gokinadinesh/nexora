@@ -39,7 +39,7 @@ async function bootstrap() {
   }
 
   // 4. Start HTTP listener
-  httpServer.listen(config.port, () => {
+  httpServer.listen(config.port, "0.0.0.0", () => {
     logger.info(`NEXORA Server running on port ${config.port} [NODE_ENV=${config.nodeEnv}]`);
     logger.info(`Liveness probe:  http://localhost:${config.port}/api/health`);
     logger.info(`Readiness probe: http://localhost:${config.port}/api/ready`);
