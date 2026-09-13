@@ -213,10 +213,10 @@ export const MatchPage: React.FC = () => {
   const isSelectedAdjacent = selectedNodeId ? isAdjacent(selectedNodeId) : false;
 
   // Action eligibility checks
-  const canMove = isMyTurn && isSelectedAdjacent && !opponentPlayers.some(p => p.role === selectedNode?.owner);
+  const canMove = isMyTurn && isSelectedAdjacent && !opponentPlayers.some(p => p.id === selectedNode?.owner);
   const canCapture = isMyTurn && isSelectedAdjacent && selectedNode?.owner === 'NEUTRAL';
-  const canAttack = isMyTurn && isSelectedAdjacent && opponentPlayers.some(p => p.role === selectedNode?.owner);
-  const canDefend = isMyTurn && gameState.grid[myPosition]?.owner === myPlayer?.role && !gameState.grid[myPosition]?.isDefended;
+  const canAttack = isMyTurn && isSelectedAdjacent && opponentPlayers.some(p => p.id === selectedNode?.owner);
+  const canDefend = isMyTurn && gameState.grid[myPosition]?.owner === myPlayer?.id && !gameState.grid[myPosition]?.isDefended;
 
   // Node selection & right-click ping handling
   const handleNodeClick = (nodeId: string) => {
@@ -232,9 +232,9 @@ export const MatchPage: React.FC = () => {
   const handleNodeContextMenu = (e: React.MouseEvent, nodeId: string) => {
     e.preventDefault();
     const node = gameState.grid[nodeId];
-    if (opponentPlayers.some(p => p.role === node?.owner)) {
+    if (opponentPlayers.some(p => p.id === node?.owner)) {
       spawnPing(nodeId, 'attack');
-    } else if (node?.owner === myPlayer?.role) {
+    } else if (node?.owner === myPlayer?.id) {
       spawnPing(nodeId, 'defend');
     } else {
       spawnPing(nodeId, 'scan');
@@ -313,7 +313,7 @@ export const MatchPage: React.FC = () => {
 
                 if (!isNeutral) {
                   // For dynamic players, we use cyan for current player, magenta/orange/red for opponents
-                  const isMe = node.owner === myPlayer?.role;
+                  const isMe = node.owner === myPlayer?.id;
                   borderColor = isMe ? 'var(--accent-cyan)' : 'var(--accent-magenta)';
                   bgColor = isMe ? 'rgba(0, 240, 255, 0.12)' : 'rgba(255, 0, 85, 0.12)';
                   glow = isMe ? '0 0 14px rgba(0, 240, 255, 0.25)' : '0 0 14px rgba(255, 0, 85, 0.25)';
@@ -439,7 +439,7 @@ export const MatchPage: React.FC = () => {
                         </span>
                       ) : (
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                          {node.owner === 'NEUTRAL' ? 'NEU' : playersList.find(p => p.role === node.owner)?.displayName?.slice(0, 2).toUpperCase() || 'OWN'}
+                          {node.owner === 'NEUTRAL' ? 'NEU' : playersList.find(p => p.id === node.owner)?.displayName?.slice(0, 2).toUpperCase() || 'OWN'}
                         </span>
                       )}
 
