@@ -68,7 +68,10 @@ async function bootstrap() {
       // 1. Drain matchmaking queue
       matchmakingService.clearQueue();
 
-      // 2. Stop accepting new HTTP connections
+      // 2. Close Socket.IO server & disconnect sockets cleanly
+      await closeSocketServer();
+
+      // 3. Stop accepting new HTTP connections
       await new Promise<void>((resolve) => {
         httpServer.close((err) => {
           if (err) logger.warn('HTTP server close notice:', err.message);
@@ -76,9 +79,6 @@ async function bootstrap() {
           resolve();
         });
       });
-
-      // 3. Close Socket.IO server & disconnect sockets cleanly
-      await closeSocketServer();
 
       // 4. Drain PostgreSQL database connection pool
       await closeDatabasePool();
