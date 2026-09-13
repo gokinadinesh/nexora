@@ -73,7 +73,9 @@ export const RegisterPage: React.FC = () => {
       navigate('/lobby');
     } catch (err: any) {
       const code = err?.code || '';
-      if (code === 'auth/email-already-in-use') {
+      if (code === 'auth/configuration-not-found') {
+        setError('Firebase Authentication is not enabled yet in your project console. Please visit Firebase Console > Authentication and click "Get Started" to enable Email/Password.');
+      } else if (code === 'auth/email-already-in-use') {
         setError('Operative identity already registered with this email');
       } else if (code === 'auth/weak-password') {
         setError('Security key is too weak - please use at least 8 characters');

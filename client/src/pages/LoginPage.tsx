@@ -15,6 +15,9 @@ export const LoginPage: React.FC = () => {
 
   const parseFirebaseError = (err: any): string => {
     const code = err?.code || '';
+    if (code === 'auth/configuration-not-found') {
+      return 'Firebase Authentication is not enabled yet in your project console. Please visit Firebase Console > Authentication and click "Get Started" to enable Email/Password or Google sign-in.';
+    }
     if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password') {
       return 'Authentication failed: Invalid operative credentials';
     }
