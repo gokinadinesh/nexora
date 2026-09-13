@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { developerController } from '../controllers/developer.controller';
 import { requireAuth } from '../middleware/auth.middleware';
-import { requireApiKey } from '../middlewares/apiKeyAuth';
+import { requireApiKey } from '../middleware/apiKeyAuth';
 
 const router = Router();
 
