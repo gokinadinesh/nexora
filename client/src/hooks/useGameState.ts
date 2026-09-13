@@ -135,11 +135,13 @@ export function useGameState(matchId?: string, currentUserId?: string) {
       setIsSubmitting(true);
 
       const actionId = `act_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const actionNonce = btoa(`${actionId}_${Date.now()}`); // Simple non-cryptographic nonce for demo purposes
       const payload: GameActionPayload = {
         matchId,
         actionId,
         type,
         targetNodeId,
+        actionNonce,
       };
 
       const socket = getSocket();

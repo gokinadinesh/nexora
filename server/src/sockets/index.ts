@@ -65,6 +65,9 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
       }
     }
 
+    // Initialize nonce tracking for replay protection
+    socket.data.processedNonces = new Set<string>();
+
     // Preserve existing connection lifecycle when no token is provided
     next();
   });
@@ -217,14 +220,42 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
       socket.on(GAME_EVENTS.PLAYER_ACTION, async (action: any) => {
         const startTime = Date.now();
 
-        if (!action || !action.matchId) {
+        if (!action || !action.matchId || !action.actionNonce) {
           metricsService.recordAction(Date.now() - startTime, false);
           socket.emit(GAME_EVENTS.ACTION_REJECTED, {
             actionId: action?.actionId,
-            reason: 'Invalid action payload',
+            reason: 'Invalid action payload: missing required fields or nonce',
             code: 'INVALID_TARGET',
           });
           return;
+        }
+
+        const nonceSet = socket.data.processedNonces as Set<string>;
+        if (nonceSet.has(action.actionNonce)) {
+          metricsService.recordAction(Date.now() - startTime, false);
+          
+          securityService.recordSecurityEvent({
+            type: 'REPLAY_ATTACK',
+            severity: 'HIGH',
+            userId: user.id,
+            username: user.username,
+            context: { actionId: action.actionId, matchId: action.matchId, nonce: action.actionNonce },
+          });
+
+          socket.emit(GAME_EVENTS.ACTION_REJECTED, {
+            actionId: action.actionId,
+            reason: 'Security violation: Action replay detected',
+            code: 'REPLAY_ATTACK',
+          });
+          return;
+        }
+
+        // Add nonce to processed set to prevent future replays
+        nonceSet.add(action.actionNonce);
+        // Prevent memory leak by capping set size
+        if (nonceSet.size > 1000) {
+          const iter = nonceSet.values();
+          nonceSet.delete(iter.next().value as string);
         }
 
         try {
@@ -418,6 +449,11 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
     } else {
       logger.info('player socket connected', `[id: ${socket.id}]`);
     }
+
+    // Application-layer heartbeat handler
+    socket.on('APP_PING', (payload) => {
+      socket.emit('APP_PONG', payload);
+    });
 
     socket.on('disconnect', async (reason) => {
       metricsService.decrementWebsocket();

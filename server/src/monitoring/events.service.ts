@@ -16,7 +16,12 @@ export class EventsService {
     reason?: string | null;
     metadata?: Record<string, any>;
   }): OperationalEvent {
-    const event: OperationalEvent = {
+    let previousHash = 'GENESIS';
+    if (this.eventBuffer.length > 0) {
+      previousHash = this.eventBuffer[this.eventBuffer.length - 1].hash || 'GENESIS';
+    }
+
+    const eventPayload = {
       id: crypto.randomUUID(),
       type: data.type,
       timestamp: Date.now(),
@@ -27,6 +32,14 @@ export class EventsService {
       success: data.success !== false,
       reason: data.reason ?? null,
       metadata: data.metadata,
+      previousHash
+    };
+
+    const hash = crypto.createHash('sha256').update(JSON.stringify(eventPayload)).digest('hex');
+
+    const event: OperationalEvent = {
+      ...eventPayload,
+      hash
     };
 
     this.eventBuffer.push(event);

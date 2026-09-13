@@ -221,8 +221,14 @@ export class MatchFinalizationService {
       throw new Error(`Failed to retrieve result details for match ${matchId}`);
     }
 
+    // Log Balance Metrics for Matchmaking Tuning
+    const ratings = finalizePlayers.map(p => p.ratingBefore);
+    const maxRating = Math.max(...ratings);
+    const minRating = Math.min(...ratings);
+    const ratingSpread = maxRating - minRating;
+    
     logger.info(
-      `MatchFinalization: Successfully finalized match ${matchId}. Winner: ${winnerId ?? 'DRAW'}, Duration: ${durationSeconds}s`
+      `MatchFinalization [Metrics]: Match ${matchId} concluded. Spread: ${ratingSpread} ELO. Winner: ${winnerId ?? 'DRAW'}, Duration: ${durationSeconds}s`
     );
 
     return resultDetails;

@@ -32,9 +32,18 @@ export async function getReadiness(req: Request, res: Response): Promise<void> {
     // Lightweight database ping
     await pool.query('SELECT 1 as ping');
 
+    const mem = process.memoryUsage();
     res.status(200).json({
       status: 'ready',
       timestamp: Date.now(),
+      metrics: {
+        memory: {
+          rss: mem.rss,
+          heapTotal: mem.heapTotal,
+          heapUsed: mem.heapUsed,
+        },
+        cpu: process.cpuUsage(),
+      },
       services: {
         server: 'accepting_traffic',
         database: 'connected',

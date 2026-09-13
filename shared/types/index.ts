@@ -258,6 +258,7 @@ export interface GameActionPayload {
   actionId: string;
   type: GameActionType;
   targetNodeId?: string;
+  actionNonce?: string;
 }
 
 export interface ActionRejectedPayload {
@@ -448,6 +449,8 @@ export interface OperationalEvent {
   success: boolean;
   reason?: string | null;
   metadata?: Record<string, any>;
+  hash?: string;
+  previousHash?: string;
 }
 
 export type SecuritySeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';

@@ -439,7 +439,7 @@ export const MatchPage: React.FC = () => {
                         </span>
                       ) : (
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                          {node.owner === 'NEUTRAL' ? 'NEUTRAL' : playersList.find(p => p.role === node.owner)?.displayName?.slice(0, 3).toUpperCase() || 'OWNED'}
+                          {node.owner === 'NEUTRAL' ? 'NEU' : playersList.find(p => p.role === node.owner)?.displayName?.slice(0, 2).toUpperCase() || 'OWN'}
                         </span>
                       )}
 
@@ -452,7 +452,7 @@ export const MatchPage: React.FC = () => {
                             fontWeight: 700,
                           }}
                         >
-                          TARGET
+                          TGT
                         </span>
                       )}
                     </div>

@@ -351,7 +351,7 @@ export class MatchmakingService {
 
       let allowedDiff = 150;
       if (waitDuration > 5000) allowedDiff = 300;
-      if (waitDuration > 10000) allowedDiff = 10000;
+      if (waitDuration > 10000) allowedDiff = 800;
 
       if (ratingDiff <= allowedDiff) {
         indices.push(i);
