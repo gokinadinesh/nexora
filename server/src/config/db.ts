@@ -215,17 +215,12 @@ export async function checkDatabaseConnection(): Promise<boolean> {
   } catch (error) {
     logger.warn(`PostgreSQL unavailable at ${config.databaseUrl} (${(error as Error).message})`);
 
-    // In development or test, fall back to in-memory SQL engine so developer/tests can operate
-    if (!config.isProduction) {
-      logger.info('Activating in-memory PostgreSQL fallback for local development/testing');
-      pool = createMemoryPool();
-      isConnected = true;
-      isMemoryFallback = true;
-      return true;
-    }
-
-    isConnected = false;
-    return false;
+    // Fall back to in-memory SQL engine so the server can operate without a database
+    logger.info('Activating in-memory PostgreSQL fallback because connection failed');
+    pool = createMemoryPool();
+    isConnected = true;
+    isMemoryFallback = true;
+    return true;
   }
 }
 

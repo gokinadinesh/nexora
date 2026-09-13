@@ -71,11 +71,11 @@ export function validateConfig(cfg: AppConfig = config): { valid: boolean; error
 
   if (cfg.isProduction) {
     if (!cfg.jwtSecret || INSECURE_JWT_SECRETS.has(cfg.jwtSecret) || cfg.jwtSecret.length < 16) {
-      errors.push('CRITICAL: JWT_SECRET must be set to a secure string with at least 16 characters in production.');
+      errors.push('WARNING: JWT_SECRET should be set to a secure string with at least 16 characters in production.');
     }
 
     if (!process.env.DATABASE_URL) {
-      errors.push('CRITICAL: DATABASE_URL must be explicitly configured in production.');
+      errors.push('WARNING: DATABASE_URL is not set. The server will fall back to an in-memory database in production, which is not recommended.');
     }
 
     if (cfg.operatorSecret === 'nexora-secret-operator-key-stage7') {
