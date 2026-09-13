@@ -147,7 +147,7 @@ export const LoginPage: React.FC = () => {
           </div>
         </form>
 
-        {/* Google Authentication disabled pending Client ID generation */}
+
 
         {/* Demo Quick-Fill Presets for Presentation */}
         <div style={{ marginTop: '28px', borderTop: '1px solid var(--border-subtle)', paddingTop: '20px' }}>

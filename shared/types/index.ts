@@ -68,7 +68,7 @@ export interface LoginRequest {
 }
 
 export interface GoogleLoginRequest {
-  token: string; // The Google ID token
+  token: string;
 }
 
 export interface AuthResponse {
